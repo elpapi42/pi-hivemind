@@ -45,8 +45,8 @@ export function listTool(config: HivemindConfig) {
       const what = describeFilter(filter, conversation);
 
       if (found.length === 0) {
-        if (query === undefined) return answer(self, `The blackboard has no ${what}.`);
-        return answer(self, `No ${what} match "${query}". The search reads titles, descriptions and closing summaries, not logs; try other words.`);
+        if (query === undefined) return answer(`The blackboard has no ${what}.`);
+        return answer(`No ${what} match "${query}". The search reads titles, descriptions and closing summaries, not logs; try other words.`);
       }
       const shown = found.slice(0, config.listLimit);
       const head =
@@ -54,7 +54,7 @@ export function listTool(config: HivemindConfig) {
           ? `${found.length} ${what}, most recently updated first.`
           : `${found.length} ${what} match "${query}", best match first.`;
       const tail = found.length > shown.length ? `\n\n${found.length - shown.length} more are not shown. Narrow the list with \`query\`, \`status\` or \`conversation\`.` : "";
-      return answer(self, `${head}\n\n${shown.map((row) => rowText(row, self)).join("\n\n")}${tail}`);
+      return answer(`${head}\n\n${shown.map((row) => rowText(row, self)).join("\n\n")}${tail}`);
     },
   });
 }

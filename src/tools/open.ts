@@ -50,7 +50,7 @@ export function openTool() {
         opened.similar.length === 0
           ? ""
           : `\n\nOpen workstreams with similar titles:\n${opened.similar.map((line) => `- ${line}`).join("\n")}\nIf one of them is the same work, mark ${ref(opened.id)} done with a summary that names it, and join that one instead.`;
-      return answer(self, `Opened ${ref(opened.id)} · ${title}. You are recorded as involved.${note}`);
+      return answer(`Opened ${ref(opened.id)} · ${title}. You are recorded as involved.${note}`);
     },
   });
 }

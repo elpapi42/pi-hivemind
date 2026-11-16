@@ -6,12 +6,6 @@ export const stamp = (ms: number): string => new Date(ms).toISOString().slice(0,
 /** A workstream id as the model reads and writes it. */
 export const ref = (id: number): string => `ws-${id}`;
 
-/**
- * The first line of every answer. A conversation does not otherwise know its own id; the prompt section cannot say
- * it, because a fork must be sent the same system prompt as its parent to read the parent's provider cache.
- */
-export const whoami = (conversation: number): string => `You are conversation ${conversation}.`;
-
 const clip = (text: string, limit: number): string => {
   const line = text.replace(/\s+/g, " ").trim();
   return line.length <= limit ? line : `${line.slice(0, limit - 1).trimEnd()}…`;

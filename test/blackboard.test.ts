@@ -13,11 +13,10 @@ test("a workstream one conversation opens is seen by the others, with who is inv
   const [a, b] = t.conversations as [(typeof t.conversations)[0], (typeof t.conversations)[0]];
   try {
     const opened = await t.call(a, "hivemind_open", EXPORT);
-    assert.match(opened, new RegExp(`^You are conversation ${a.id}\\.`), "every answer starts with the caller's id");
-    assert.match(opened, /Opened ws-1 · Bulk invoice export\. You are recorded as involved\./);
+    assert.match(opened, /^Opened ws-1 · Bulk invoice export\. You are recorded as involved\./);
+    assert.ok(!opened.includes(`conversation ${a.id}`), "an answer does not state the caller's id");
 
     const list = await t.call(b, "hivemind_list", {});
-    assert.match(list, new RegExp(`^You are conversation ${b.id}\\.`));
     assert.match(list, /1 open workstreams, most recently updated first\./);
     assert.match(list, /ws-1 · Bulk invoice export · open/);
     assert.match(list, new RegExp(`involved: ${a.id}\\n`), "the other conversation is listed, and not marked as the reader");

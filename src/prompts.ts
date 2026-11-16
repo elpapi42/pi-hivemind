@@ -5,7 +5,7 @@ export const PROMPT = readFileSync(new URL("../PROMPT.md", import.meta.url), "ut
 
 export const TOOL_DESCRIPTIONS = {
   list:
-    "List the workstreams on the blackboard, most recently updated first: id, title, state, the conversations involved, and the start of the description. Without arguments it shows the open ones. `query` searches the titles, descriptions and closing summaries of all workstreams, done ones included, and returns the best matches first. `status` narrows to \"open\" or \"done\", or widens to \"all\". `conversation` keeps the workstreams one conversation is involved in. The answer starts with your own conversation id.",
+    "List the workstreams on the blackboard, most recently updated first: id, title, state, the conversations involved, and the start of the description. Without arguments it shows the open ones. `query` searches the titles, descriptions and closing summaries of all workstreams, done ones included, and returns the best matches first. `status` narrows to \"open\" or \"done\", or widens to \"all\". `conversation` keeps the workstreams one conversation is involved in. Where this conversation is among those involved, it is marked \"(you)\".",
   read:
     "Read one workstream in full: its description, its closing summary when it is done, every conversation involved with its own account of its part, and the newest entries of its log. Pass `before` with an entry number to see older log entries.",
   open:
@@ -14,4 +14,6 @@ export const TOOL_DESCRIPTIONS = {
     "Change a workstream. Pass only what changes. `log` adds one entry about something that happened to the work: progress, a decision, a block, new information. `description` replaces the description; rewrite it whenever it no longer says how things stand. `involvement` sets or rewrites this conversation's own part, and is required the first time this conversation changes a workstream. `status` \"done\" closes it and needs `summary`: what happened and how it ended, complete enough that a later reader needs nothing else. `status` \"open\" reopens a done workstream.",
   message:
     "Send a message to another conversation of this agent, by its id as the blackboard shows it. A conversation that is working receives it in the middle of its work; an idle one is woken by it, however old it is. The call returns at once: an answer, if any, arrives later as a message to this conversation. `reply` says whether you expect an answer. `workstream` names the workstream the message is about, when there is one. Write so that it stands alone: the receiver does not see your context. When you pass on what a person said or asked, name the person.",
+  whoami:
+    "Tells you which conversation you are: your id, and the workstreams you are involved in. Do not take your id from memory. A conversation can be continued as a copy under a new id, and the copy starts with everything the original read, the original's id included, so an id you remember may no longer be yours. Call this whenever you need your id, and when what the blackboard says about you does not match what you remember. The other tools always act as the conversation you really are.",
 } as const;

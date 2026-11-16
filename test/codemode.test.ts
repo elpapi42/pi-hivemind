@@ -35,7 +35,7 @@ test("with codemodeOnly the tools are reached from scripts, and a refusal does n
     assert.match(output, /1 open workstreams, most recently updated first\./);
 
     const system = t.systems[0]!;
-    for (const name of ["hivemind_list", "hivemind_read", "hivemind_open", "hivemind_update", "hivemind_message"]) {
+    for (const name of ["hivemind_list", "hivemind_read", "hivemind_open", "hivemind_update", "hivemind_message", "hivemind_whoami"]) {
       assert.ok(system.includes(name), `${name} is declared for scripts`);
     }
     assert.match(await t.call(a!, "hivemind_list", {}), /hivemind_list/, "the model cannot call a tool directly; it is told the tool is not available");

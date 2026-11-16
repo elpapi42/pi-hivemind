@@ -10,13 +10,18 @@ export const UPDATE_TOOL = "hivemind_update";
 type Change = { description?: string; log?: string; involvement?: string; status?: "open" | "done"; summary?: string };
 
 /** Apply the change. Returns what was done, one phrase per part, or why nothing was. */
-function apply(workstream: Workstream, change: Change, self: number, at: number): { done: string[] } | { refused: string } {
+function apply(workstream: Workstream, change: Change, self: number, at: number, copiedFrom?: number): { done: string[] } | { refused: string } {
   const closing = change.status === "done" && workstream.status === "open";
   const reopening = change.status === "open" && workstream.status === "done";
   const doneAfter = change.status === undefined ? workstream.status === "done" : change.status === "done";
 
   if (!isInvolved(workstream, self) && change.involvement === undefined) {
-    return { refused: `You are not yet involved in ${ref(workstream.id)}. Pass \`involvement\` in the same call: what your part in it is and what you are responsible for.` };
+    // A fork remembers what its parent did, so it may take the parent's part for its own.
+    const copy =
+      copiedFrom !== undefined && isInvolved(workstream, copiedFrom)
+        ? ` You may remember being part of it: that was conversation ${copiedFrom}, which this conversation started as a copy of. You are conversation ${self}.`
+        : "";
+    return { refused: `You are not yet involved in ${ref(workstream.id)}.${copy} Pass \`involvement\` in the same call: what your part in it is and what you are responsible for.` };
   }
   if (closing && change.summary === undefined) {
     return { refused: `Marking ${ref(workstream.id)} done needs \`summary\`: what happened and how it ended.` };
@@ -114,11 +119,12 @@ export function updateTool() {
       return api.commit(async (tx) => {
         const workstream = await workstreamForUpdate(tx, id);
         if (workstream === undefined) return refuse(`There is no workstream ${ref(id)}. Call hivemind_list to see the ones that exist.`);
-        const result = apply(workstream, change, self, api.now());
+        const copiedFrom = (await tx.conversation(api.conversationId))?.parent?.conversationId as number | undefined;
+        const result = apply(workstream, change, self, api.now(), copiedFrom);
         if ("refused" in result) return refuse(result.refused);
         await reindex(tx, workstream);
         const list = result.done.length === 1 ? result.done[0]! : `${result.done.slice(0, -1).join(", ")} and ${result.done[result.done.length - 1]}`;
-        return answer(self, `${ref(id)} · ${workstream.title}: ${list}.`);
+        return answer(`${ref(id)} · ${workstream.title}: ${list}.`);
       }, context);
     },
   });

@@ -1,8 +1,6 @@
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
-import { whoami } from "../render.ts";
-
-/** A normal answer. Every answer starts by telling the conversation its own id. */
-export const answer = (self: number, text: string): ToolExecutionResult => ({ output: [{ type: "text", text: `${whoami(self)}\n\n${text}` }] });
+/** A normal answer. */
+export const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
 
 /** A refusal. It always says why, so the caller can correct itself. */
 export const refuse = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }], isError: true });

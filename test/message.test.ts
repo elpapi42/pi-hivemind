@@ -14,7 +14,7 @@ test("a message wakes an idle conversation, which reads who sent it, and its ans
 
     const received = (await t.messages(b)).map(textOf);
     assert.equal(received[0], `<hivemind-message from="${a.id}" workstream="ws-1" reply="expected">\n${reply}\n</hivemind-message>`);
-    assert.ok(received.some((text) => text.startsWith(`You are conversation ${b.id}.\n\nSent to conversation ${a.id}.`)), "the woken conversation ran and answered");
+    assert.ok(received.some((text) => text.startsWith(`Sent to conversation ${a.id}.`)), "the woken conversation ran and answered");
 
     const back = (await t.messages(a)).map(textOf);
     assert.ok(

@@ -50,7 +50,7 @@ export function messageTool() {
       const content = envelope({ from: self, reply: input.reply, text, ...(workstream === undefined ? {} : { workstream }) });
       // A working conversation gets it after its current tool round; an idle one starts a run on it.
       await handle.submit({ type: "input", content, whenBusy: "steer" }, context);
-      return answer(self, `Sent to conversation ${to}.${input.reply ? " Its answer will arrive later as a message to you; go on with your work, or end your turn if you have nothing else to do." : ""}`);
+      return answer(`Sent to conversation ${to}.${input.reply ? " Its answer will arrive later as a message to you; go on with your work, or end your turn if you have nothing else to do." : ""}`);
     },
   });
 }

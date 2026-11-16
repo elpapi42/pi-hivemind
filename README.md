@@ -85,10 +85,21 @@ The extension never decides who gets a message. The sender reads on the blackboa
 | `hivemind_open` | Opens a workstream and records the caller as involved. The answer names open workstreams with similar titles, so a duplicate is noticed at once. |
 | `hivemind_update` | Adds a log entry, rewrites the description, sets the caller's involvement, marks the workstream done with a closing summary, or reopens it |
 | `hivemind_message` | Sends a message to another conversation |
+| `hivemind_whoami` | Tells the caller its own conversation id and the workstreams it is involved in |
 
 Each tool checks what it is asked and refuses with an explanation. A conversation that changes a workstream for the first time must say what its part is. Asking for a workstream that does not exist creates nothing.
 
-Every answer starts with the caller's own conversation id. The prompt section cannot give it: a fork must be sent the same system prompt as its parent to read the parent's provider cache, so the section is the same text for every conversation.
+### A conversation's own id
+
+A conversation should not keep its id in mind. A fork starts with the context of its parent, so an id it read there is the parent's, not its own. Hivemind therefore handles identity in three ways:
+
+- **The tools act as the caller.** A new workstream, a log entry, an involvement and a message all carry the id of the conversation that really made the call.
+- **Lists and workstreams mark the caller as "(you)"** among the conversations involved.
+- **`hivemind_whoami` gives the id on request,** with the workstreams the caller is involved in. For a fork it also names the parent and says that the work from before the fork is recorded under the parent.
+
+A fork that changes a workstream its parent is involved in is told so, and asked for its own involvement.
+
+The prompt section does not give the id either: a fork must be sent the same system prompt as its parent to read the parent's provider cache, so the section is the same text for every conversation.
 
 ## What the conversations are told
 
@@ -159,4 +170,4 @@ The code is TypeScript that Node runs directly, with no build step.
 | `src/search.ts` | Ranking index rows against a query |
 | `src/render.ts` | Workstreams, lists and messages as the model reads them |
 | `src/prompts.ts` | The tool descriptions, and loading the prompt section |
-| `src/tools/` | The five tools |
+| `src/tools/` | The six tools |

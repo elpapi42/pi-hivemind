@@ -4,10 +4,11 @@ import { messageTool } from "./message.ts";
 import { openTool } from "./open.ts";
 import { readTool } from "./read.ts";
 import { updateTool } from "./update.ts";
+import { whoamiTool } from "./whoami.ts";
 
-/** The five tools. With `codemodeOnly`, none is offered to the model directly: codemode scripts call them. */
+/** The six tools. With `codemodeOnly`, none is offered to the model directly: codemode scripts call them. */
 export function hivemindTools(config: HivemindConfig) {
-  const tools = [listTool(config), readTool(config), openTool(), updateTool(), messageTool()];
+  const tools = [listTool(config), readTool(config), openTool(), updateTool(), messageTool(), whoamiTool()];
   return config.codemodeOnly ? tools.map(scripted) : tools;
 }
 

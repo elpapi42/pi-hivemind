@@ -30,7 +30,7 @@ export function readTool(config: HivemindConfig) {
       const workstream = await api.snapshot(WorkstreamDoc, String(id), context);
       if (workstream === undefined) return refuse(`There is no workstream ${ref(id)}. Call hivemind_list to see the ones that exist.`);
       const part = isInvolved(workstream, self) ? "" : "You are not involved in this workstream.\n\n";
-      return answer(self, part + workstreamText(workstream, self, config.logPage, before));
+      return answer(part + workstreamText(workstream, self, config.logPage, before));
     },
   });
 }

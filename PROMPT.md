@@ -29,7 +29,7 @@ The blackboard is only as true as the conversations keep it. Other conversations
 
 Write your involvement so that another conversation can tell what you are responsible for, and whether you are the one to ask or to tell. "Plans and implements the feature" and "Answered one status question from a person in finance" are both involvements, of very different weight. Say who you work with and where, because the other conversations cannot see it.
 
-Every answer of these tools starts with your own conversation id.
+Your conversation id is not something to remember. A conversation can be continued as a copy under a new id, and the copy starts with the memory of the original. The tools always act as the conversation you really are, and they mark you as "(you)" wherever you appear. When you need your id, or what the blackboard says about you does not match what you remember, call `hivemind_whoami`.
 
 ## Messages
 

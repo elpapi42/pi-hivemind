@@ -86,7 +86,12 @@ export async function setup(config: Partial<HivemindConfig> = {}, options: { con
     const results = (await messages(conversation)).filter((message) => message.role === "toolResult");
     return textOf(results[results.length - 1]!);
   };
+  /** A copy of a conversation as it is now, under a new id, as a thread started from it would be. */
+  const fork = async (conversation: Conversation) => {
+    const at = await conversation.commit((tx) => tx.latestEntryId(conversation.id), ctx);
+    return conversation.fork(at!, { ownership: { kind: "ownerless" } }, ctx);
+  };
   const index = async () => (await harness.snapshot(IndexDoc, ctx)) as Index | undefined;
   const workstream = async (id: number) => (await harness.snapshot(WorkstreamDoc, String(id), ctx)) as Workstream | undefined;
-  return { harness, conversations, say, call, messages, index, workstream, systems, close: () => harness.close(ctx) };
+  return { harness, conversations, say, call, messages, fork, index, workstream, systems, close: () => harness.close(ctx) };
 }
