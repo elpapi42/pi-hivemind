@@ -2,9 +2,10 @@ import { defineTool } from "@earendil-works/pi-durable";
 import { IndexDoc, type IndexRow, type Status } from "../board.ts";
 import type { HivemindConfig } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
-import { rowText } from "../render.ts";
+import { ref, rowText } from "../render.ts";
 import { search } from "../search.ts";
-import { answer, parameters, refuse, toConversationId, toText } from "./shared.ts";
+import { LIST_OUTPUT } from "./schemas.ts";
+import { failure, iso, parameters, result, toConversationId, toText } from "./shared.ts";
 
 export const LIST_TOOL = "hivemind_list";
 
@@ -12,6 +13,17 @@ type Filter = Status | "all";
 
 const describeFilter = (filter: Filter, conversation: number | undefined): string =>
   `${filter === "all" ? "" : `${filter} `}workstreams${conversation === undefined ? "" : ` that involve conversation ${conversation}`}`;
+
+/** One workstream as scripts get it. */
+const rowObject = (row: IndexRow) => ({
+  id: ref(row.id),
+  title: row.title,
+  status: row.status,
+  updatedAt: iso(row.updatedAt),
+  involved: [...row.involved],
+  description: row.description,
+  ...(row.summary === undefined ? {} : { summary: row.summary }),
+});
 
 export function listTool(config: HivemindConfig) {
   return defineTool({
@@ -25,10 +37,12 @@ export function listTool(config: HivemindConfig) {
       },
       ["query", "status", "conversation"],
     ),
+    structuredOutputSchema: LIST_OUTPUT,
     replay: "safe",
     execute: async (args, api, context) => {
       const input = args as { query?: unknown; status?: unknown; conversation?: unknown };
       const self = api.conversationId as number;
+      const refuse = (error: string) => failure(error, { you: self, total: 0, workstreams: [] });
       const query = toText(input.query);
       if (input.status !== undefined && input.status !== null && !["open", "done", "all"].includes(input.status as string)) {
         return refuse('`status` must be "open", "done" or "all".');
@@ -42,19 +56,20 @@ export function listTool(config: HivemindConfig) {
         (row) => (filter === "all" || row.status === filter) && (conversation === undefined || row.involved.includes(conversation)),
       );
       const found: IndexRow[] = query === undefined ? kept.sort((a, b) => b.updatedAt - a.updatedAt) : search(kept, query);
+      const shown = found.slice(0, config.listLimit);
+      const structured = { you: self, total: found.length, workstreams: shown.map(rowObject) };
       const what = describeFilter(filter, conversation);
 
       if (found.length === 0) {
-        if (query === undefined) return answer(`The blackboard has no ${what}.`);
-        return answer(`No ${what} match "${query}". The search reads titles, descriptions and closing summaries, not logs; try other words.`);
+        if (query === undefined) return result(`The blackboard has no ${what}.`, structured);
+        return result(`No ${what} match "${query}". The search reads titles, descriptions and closing summaries, not logs; try other words.`, structured);
       }
-      const shown = found.slice(0, config.listLimit);
       const head =
         query === undefined
           ? `${found.length} ${what}, most recently updated first.`
           : `${found.length} ${what} match "${query}", best match first.`;
       const tail = found.length > shown.length ? `\n\n${found.length - shown.length} more are not shown. Narrow the list with \`query\`, \`status\` or \`conversation\`.` : "";
-      return answer(`${head}\n\n${shown.map((row) => rowText(row, self)).join("\n\n")}${tail}`);
+      return result(`${head}\n\n${shown.map((row) => rowText(row, self)).join("\n\n")}${tail}`, structured);
     },
   });
 }

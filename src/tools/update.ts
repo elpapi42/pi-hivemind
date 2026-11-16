@@ -3,7 +3,8 @@ import { isInvolved, reindex, workstreamForUpdate, type Workstream } from "../bo
 import { LIMITS } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { ref } from "../render.ts";
-import { answer, firstReason, parameters, refuse, tooLong, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
+import { UPDATE_OUTPUT } from "./schemas.ts";
+import { failure, firstReason, parameters, result, tooLong, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
 
 export const UPDATE_TOOL = "hivemind_update";
 
@@ -88,8 +89,10 @@ export function updateTool() {
       },
       ["log", "description", "involvement", "status", "summary"],
     ),
+    structuredOutputSchema: UPDATE_OUTPUT,
     executionMode: "sequential",
     execute: async (args, api, context) => {
+      const refuse = (error: string) => failure(error, { changed: [] });
       const input = args as Record<string, unknown>;
       const self = api.conversationId as number;
       const id = toWorkstreamId(input.workstream);
@@ -120,11 +123,11 @@ export function updateTool() {
         const workstream = await workstreamForUpdate(tx, id);
         if (workstream === undefined) return refuse(`There is no workstream ${ref(id)}. Call hivemind_list to see the ones that exist.`);
         const copiedFrom = (await tx.conversation(api.conversationId))?.parent?.conversationId as number | undefined;
-        const result = apply(workstream, change, self, api.now(), copiedFrom);
-        if ("refused" in result) return refuse(result.refused);
+        const applied = apply(workstream, change, self, api.now(), copiedFrom);
+        if ("refused" in applied) return refuse(applied.refused);
         await reindex(tx, workstream);
-        const list = result.done.length === 1 ? result.done[0]! : `${result.done.slice(0, -1).join(", ")} and ${result.done[result.done.length - 1]}`;
-        return answer(`${ref(id)} · ${workstream.title}: ${list}.`);
+        const list = applied.done.length === 1 ? applied.done[0]! : `${applied.done.slice(0, -1).join(", ")} and ${applied.done[applied.done.length - 1]}`;
+        return result(`${ref(id)} · ${workstream.title}: ${list}.`, { changed: applied.done });
       }, context);
     },
   });

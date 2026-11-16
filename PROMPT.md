@@ -32,7 +32,7 @@ Write your involvement so that another conversation can tell what you are respon
 
 Describe only what this conversation does. What another conversation does is not your part, although to people it is all your work. If you write its work as yours, the others will send you what belongs to it.
 
-Your conversation id is not something to remember. A conversation can be continued as a copy under a new id, and the copy starts with the memory of the original. The tools always act as the conversation you really are, and they mark you as "(you)" wherever you appear. When you need your id, or what the blackboard says about you does not match what you remember, call `hivemind_whoami`.
+Your conversation id is not something to remember. A conversation can be continued as a copy under a new id, and the copy starts with the memory of the original. The tools always act as the conversation you really are, and their answers mark which conversation is you. When you need your id, or what the blackboard says about you does not match what you remember, call `hivemind_whoami`.
 
 ## Messages
 

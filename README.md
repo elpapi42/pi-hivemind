@@ -78,23 +78,23 @@ The extension never decides who gets a message. The sender reads on the blackboa
 
 ## Tools
 
-| Tool | What it does |
-| --- | --- |
-| `hivemind_list` | Lists the open workstreams. `query` searches all of them, done ones included; `status` and `conversation` filter. |
-| `hivemind_read` | Shows one workstream in full, with the newest page of its log; `before` reads further back. |
-| `hivemind_open` | Opens a workstream and records the caller as involved. The answer names open workstreams with similar titles, so a duplicate is noticed at once. |
-| `hivemind_update` | Adds a log entry, rewrites the description, sets the caller's involvement, marks the workstream done with a closing summary, or reopens it |
-| `hivemind_message` | Sends a message to another conversation |
-| `hivemind_whoami` | Tells the caller its own conversation id and the workstreams it is involved in |
+| Tool | What it does | What a script gets |
+| --- | --- | --- |
+| `hivemind_list` | Lists the open workstreams. `query` searches all of them, done ones included; `status` and `conversation` filter. | `{ you, total, workstreams: [{ id, title, status, updatedAt, involved, description, summary? }] }` |
+| `hivemind_read` | Shows one workstream in full, with the newest page of its log; `before` reads further back. | `{ you, workstream?: { id, title, status, updatedAt, description, summary?, involved: [{ conversation, part, since }], log: [{ n, at, by, text }], logTotal } }` |
+| `hivemind_open` | Opens a workstream and records the caller as involved. It names open workstreams with similar titles, so a duplicate is noticed at once. | `{ id, similar: [{ id, title }] }` |
+| `hivemind_update` | Adds a log entry, rewrites the description, sets the caller's involvement, marks the workstream done with a closing summary, or reopens it | `{ changed: string[] }` |
+| `hivemind_message` | Sends a message to another conversation | `{ sent }` |
+| `hivemind_whoami` | Tells the caller its own conversation id and the workstreams it is involved in | `{ you, workstreams: [{ id, title, status, part }], copyOf?, copyOfWorkstreams? }` |
 
-Each tool checks what it is asked and refuses with an explanation. A conversation that changes a workstream for the first time must say what its part is. Asking for a workstream that does not exist creates nothing.
+Every tool declares its object as structured output, so codemode scripts receive it and the codemode section shows its type; a model that calls a tool directly reads text. Times are ISO strings. Each tool checks what it is asked and refuses with an explanation: in the object, `error` says why, and the script goes on. A conversation that changes a workstream for the first time must say what its part is. Asking for a workstream that does not exist creates nothing.
 
 ### A conversation's own id
 
 A conversation should not keep its id in mind. A fork starts with the context of its parent, so an id it read there is the parent's, not its own. Hivemind therefore handles identity in three ways:
 
 - **The tools act as the caller.** A new workstream, a log entry, an involvement and a message all carry the id of the conversation that really made the call.
-- **Lists and workstreams mark the caller as "(you)"** among the conversations involved.
+- **Answers mark the caller:** the text marks it as "(you)" among the conversations involved, and the objects carry its id as `you`.
 - **`hivemind_whoami` gives the id on request,** with the workstreams the caller is involved in. For a fork it also names the parent and says that the work from before the fork is recorded under the parent.
 
 A fork that changes a workstream its parent is involved in is told so, and asked for its own involvement.

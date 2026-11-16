@@ -21,6 +21,12 @@ export function rowText(row: IndexRow, self: number): string {
   return [`${ref(row.id)} · ${row.title} · ${state}`, `  Updated ${stamp(row.updatedAt)} UTC · involved: ${involvedList(row.involved, self)}`, `  ${text}`].join("\n");
 }
 
+/** The log entries one page shows, as indexes `start` to `end` (exclusive): the newest page, or the page before entry `before`. */
+export function logPage(total: number, pageSize: number, before?: number): { start: number; end: number } {
+  const end = before === undefined ? total : Math.max(0, Math.min(total, before - 1));
+  return { start: Math.max(0, end - pageSize), end };
+}
+
 /**
  * A whole workstream. The log is shown a page at a time, newest page first: `before` is the number of the entry the
  * page ends before, and absent for the newest page.
@@ -43,8 +49,7 @@ export function workstreamText(workstream: Workstream, self: number, pageSize: n
   }
 
   const total = workstream.log.length;
-  const end = before === undefined ? total : Math.max(0, Math.min(total, before - 1));
-  const start = Math.max(0, end - pageSize);
+  const { start, end } = logPage(total, pageSize, before);
   lines.push("", end === 0 ? "Log: no earlier entries." : `Log (entries ${start + 1} to ${end} of ${total}):`);
   for (let i = start; i < end; i++) {
     const entry = workstream.log[i]!;

@@ -1,9 +1,22 @@
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
-/** A normal answer. */
-export const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
 
-/** A refusal. It always says why, so the caller can correct itself. */
-export const refuse = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }], isError: true });
+type Structured = NonNullable<ToolExecutionResult["structuredOutput"]>;
+
+/** An answer: the text for a model that calls the tool directly, the object for scripts. */
+export const result = (text: string, structuredOutput: Structured): ToolExecutionResult => ({ output: [{ type: "text", text }], structuredOutput });
+
+/**
+ * A refusal that keeps the tool's object, with `error` saying why, so a script receives the object and reads `error`
+ * instead of ending.
+ */
+export const failure = (error: string, empty: { readonly [key: string]: Structured }): ToolExecutionResult => ({
+  output: [{ type: "text", text: error }],
+  structuredOutput: { ...empty, error },
+  isError: true,
+});
+
+/** A time as scripts get it. */
+export const iso = (ms: number): string => new Date(ms).toISOString();
 
 /** A JSON Schema object whose properties are required unless listed in `optional`. */
 export function parameters(properties: Record<string, object>, optional: readonly string[] = []) {

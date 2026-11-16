@@ -3,7 +3,8 @@ import { asConversationId, IndexDoc } from "../board.ts";
 import { LIMITS } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { envelope, ref } from "../render.ts";
-import { answer, parameters, refuse, toConversationId, tooLong, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
+import { MESSAGE_OUTPUT } from "./schemas.ts";
+import { failure, parameters, result, toConversationId, tooLong, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
 
 export const MESSAGE_TOOL = "hivemind_message";
 
@@ -20,8 +21,10 @@ export function messageTool() {
       },
       ["workstream"],
     ),
+    structuredOutputSchema: MESSAGE_OUTPUT,
     executionMode: "sequential",
     execute: async (args, api, context) => {
+      const refuse = (error: string) => failure(error, { sent: false });
       const input = args as { to?: unknown; text?: unknown; reply?: unknown; workstream?: unknown };
       const self = api.conversationId as number;
       const to = toConversationId(input.to);
@@ -50,7 +53,7 @@ export function messageTool() {
       const content = envelope({ from: self, reply: input.reply, text, ...(workstream === undefined ? {} : { workstream }) });
       // A working conversation gets it after its current tool round; an idle one starts a run on it.
       await handle.submit({ type: "input", content, whenBusy: "steer" }, context);
-      return answer(`Sent to conversation ${to}.${input.reply ? " Its answer will arrive later as a message to you; go on with your work, or end your turn if you have nothing else to do." : ""}`);
+      return result(`Sent to conversation ${to}.${input.reply ? " Its answer will arrive later as a message to you; go on with your work, or end your turn if you have nothing else to do." : ""}`, { sent: true });
     },
   });
 }
