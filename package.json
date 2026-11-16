@@ -1,0 +1,31 @@
+{
+  "name": "pi-hivemind",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hivemind: makes the conversations of one Pi Durable agent work as a collective, with a shared blackboard of workstreams and direct messages between conversations",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/chord": "^1.5.2",
+    "@earendil-works/pi-durable": "^1.5.2"
+  },
+  "devDependencies": {
+    "@earendil-works/chord": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-codemode": "1.5.2",
+    "@earendil-works/pi-durable": "1.5.2",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}
