@@ -33,6 +33,7 @@ test("an entry is refused when it is empty, too long, or about a workstream that
     assert.equal(
       await t.call(a!, "hivemind_write_log", { text: "x".repeat(241) }),
       "The entry is too long: `text` has 241 characters, and the most is 200. An entry holds one fact: shorten it, or split it into two entries, and write it again. Nothing was written to the log.",
+      "the refusal names the length that was sent and the most allowed",
     );
     assert.match(await t.call(a!, "hivemind_write_log", { text: "Backend merged.", workstream: "ws-3" }), /There is no workstream ws-3\./);
     assert.match(await t.call(a!, "hivemind_write_log", { text: "Backend merged.", workstream: "invoices" }), /must be a workstream id such as "ws-12"/);

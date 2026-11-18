@@ -4,7 +4,7 @@ import { ENTRY_SLACK, LIMITS, type HivemindConfig } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { ref } from "../render.ts";
 import { WRITE_LOG_OUTPUT } from "./schemas.ts";
-import { parameters, rejection, result, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
+import { failure, parameters, result, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
 
 export const WRITE_LOG_TOOL = "hivemind_write_log";
 
@@ -22,8 +22,8 @@ export function writeLogTool(config: HivemindConfig) {
     structuredOutputSchema: WRITE_LOG_OUTPUT,
     executionMode: "sequential",
     execute: async (args, api, context) => {
-      // An entry that is not written must never pass unnoticed, so every refusal here ends the script that made the call.
-      const refuse = (error: string) => rejection(`${error} Nothing was written to the log.`);
+      // A refused entry is an entry the log never gets, so the refusal says plainly that nothing was written.
+      const refuse = (error: string) => failure(`${error} Nothing was written to the log.`, {});
       const input = args as { text?: unknown; workstream?: unknown };
       const text = toText(input.text)?.replace(/\s+/g, " ");
       if (text === undefined) return refuse("`text` is empty. Write the entry.");

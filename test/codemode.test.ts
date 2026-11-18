@@ -36,7 +36,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
       `show("twin", await tools.hivemind_open_workstream({ title: "Invoice export in bulk", description: "Same?", involvement: "Checks it." }));`,
       `show("wrote", await tools.hivemind_write_log({ text: "Schema agreed with finance.", workstream: "ws-1" }));`,
       `show("plain", await tools.hivemind_write_log({ text: "Told Luis that the test database is refreshed every night." }));`,
-      `try { await tools.hivemind_write_log({ text: "${"x".repeat(241)}" }); show("long", "written"); } catch (error) { show("long", String(error.message)); }`,
+      `show("long", await tools.hivemind_write_log({ text: "${"x".repeat(241)}" }));`,
       `show("longish", await tools.hivemind_write_log({ text: "${"x".repeat(210)}" }));`,
       `show("updated", await tools.hivemind_update_workstream({ workstream: "ws-1", description: "Schema agreed. Backend next." }));`,
       `show("noop", await tools.hivemind_update_workstream({ workstream: "ws-1" }));`,
@@ -54,7 +54,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     assert.deepEqual(got("twin"), { id: "ws-2", similar: [{ id: "ws-1", title: "Bulk invoice export" }] });
     assert.deepEqual(got("wrote"), { n: 3 });
     assert.deepEqual(got("plain"), { n: 4 });
-    assert.match(got("long"), /The entry is too long: `text` has 241 characters, and the most is 200\..* Nothing was written to the log\./, "an entry that is not written is an error in the script, not a field to overlook");
+    assert.deepEqual(got("long"), { error: "The entry is too long: `text` has 241 characters, and the most is 200. An entry holds one fact: shorten it, or split it into two entries, and write it again. Nothing was written to the log." }, "a refused entry does not end the script: it comes back as an error to inspect");
     assert.deepEqual(got("longish"), { n: 5, warning: "The entry has 210 characters. The most is 200: write shorter entries." });
     assert.deepEqual(got("updated"), { changed: ["rewrote the description"] });
     assert.deepEqual(got("noop"), { changed: [], error: "Pass at least one of `description`, `involvement`, `status` or `summary`." });
@@ -97,13 +97,6 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
       ],
     });
 
-    // A script that does not catch the error stops there, and the conversation reads the reason.
-    await t.say(a, `call codemode ${JSON.stringify({ code: `await tools.hivemind_write_log({ text: "${"y".repeat(300)}" }); console.log("went on");` })}`);
-    const stopped = (await t.messages(a)).map(textOf).filter((text) => text.includes("has 300 characters")).at(-1);
-    assert.match(stopped ?? "", /The entry is too long: `text` has 300 characters, and the most is 200\./);
-    assert.ok(!(stopped ?? "").includes("went on"), "the script did not go on as if the entry were written");
-    assert.equal((await t.read()).total, 5, "and nothing was written");
-
     // A fork learns that it is a copy, and of whom.
     const fork = await t.fork(a);
     const copy = (await run(fork, [`show("whoami", await tools.hivemind_whoami({}));`]))("whoami");
@@ -116,6 +109,11 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     const names = ["hivemind_write_log", "hivemind_read_log", "hivemind_list_workstreams", "hivemind_read_workstream", "hivemind_open_workstream", "hivemind_update_workstream", "hivemind_send_message", "hivemind_whoami"];
     for (const name of names) assert.ok(system.includes(name), `${name} is declared for scripts`);
     assert.ok(system.includes("matchedWords") && system.includes("copyOfWorkstreams"), "with the types of their objects");
+    const told = system.replace(/\\+"/g, '"');
+    for (const name of names.filter((tool) => tool !== "hivemind_whoami")) {
+      const section = told.slice(told.indexOf(`### \`${name}\``), told.indexOf("codemode tool declaration", told.indexOf(`### \`${name}\``)));
+      assert.match(section, /Check `error` in the result/, `${name} tells its caller to check the error`);
+    }
     assert.match(await t.call(a, "hivemind_read_log", {}), /hivemind_read_log/, "the model cannot call a tool directly; it is told the tool is not available");
   } finally {
     await t.close();

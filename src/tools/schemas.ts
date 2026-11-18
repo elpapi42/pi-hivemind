@@ -10,7 +10,7 @@ const YOU = integer("This conversation's id.");
 const ID = string('Workstream id, such as "ws-12".');
 const STATUS = { type: "string", enum: ["open", "done"] };
 const TIME = string("ISO time.");
-const ERROR = (then: string) => string(`Why the call was refused; ${then}.`);
+const ERROR = (then: string) => string(`Present when the call was refused, and says why; ${then}. Check it after every call.`);
 const OLDER = integer("Present when older entries exist that were not read: pass it as `before` to read on.");
 
 const ENTRY = { n: integer("Number of the entry in the log."), at: TIME, by: integer("Id of the conversation that wrote it."), text: string() };
@@ -19,8 +19,9 @@ export const WRITE_LOG_OUTPUT = parameters(
   {
     n: integer("Number of the new entry."),
     warning: string("Present when the entry was written but is longer than it may be."),
+    error: ERROR("nothing was written and `n` is absent"),
   },
-  ["warning"],
+  ["n", "warning", "error"],
 );
 
 export const READ_LOG_OUTPUT = parameters(

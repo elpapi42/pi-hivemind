@@ -45,7 +45,7 @@ export const LIMITS = {
 /**
  * How far over its ceiling a log entry is still taken. A model cannot count characters exactly: in a trial with real
  * models, one entry in six was 3 to 18 characters over. Such an entry is kept, and its writer is warned. A longer one
- * is refused as an error that names both lengths.
+ * is refused, and the refusal names both lengths.
  */
 export const ENTRY_SLACK = 40;
 
