@@ -1,9 +1,10 @@
-import type { IndexRow } from "./board.ts";
-
 /** Lowercase words and numbers of a text. */
 export function tokenize(text: string): string[] {
   return text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 }
+
+/** The different words of a query. */
+export const termsOf = (query: string): string[] => [...new Set(tokenize(query))];
 
 /** Whether a word of a text answers a word of the query: the same word, or one that begins with the other ("invoice", "invoices"). */
 function answers(word: string, term: string): boolean {
@@ -14,32 +15,32 @@ function answers(word: string, term: string): boolean {
 /** How often the words answer the term. */
 const hits = (words: readonly string[], term: string): number => words.reduce((count, word) => count + (answers(word, term) ? 1 : 0), 0);
 
-/** A word of the query found in the title counts as much as this many mentions in the text. */
-const TITLE_WEIGHT = 5;
+/** How many of the terms a text has. */
+export function matched(text: string, terms: readonly string[]): number {
+  const words = tokenize(text);
+  return terms.reduce((count, term) => count + (words.some((word) => answers(word, term)) ? 1 : 0), 0);
+}
 
 /**
- * The rows that match the query, best first. A row that matches more of the query's words ranks above one that
- * matches fewer; then the one that matches them more often, the title counting most; then the one updated last.
- * The log of a workstream is not in the index, so it is not searched.
+ * The rows whose title matches the query, best first. A row that matches more of the query's words ranks above one
+ * that matches fewer; then the one that matches them more often; then the one updated last.
  */
-export function search(rows: readonly IndexRow[], query: string): IndexRow[] {
-  const terms = [...new Set(tokenize(query))];
+export function searchTitles<Row extends { title: string; updatedAt: number }>(rows: readonly Row[], query: string): Row[] {
+  const terms = termsOf(query);
   if (terms.length === 0) return [];
   const scored = rows.map((row) => {
     const title = tokenize(row.title);
-    const text = tokenize(`${row.description} ${row.summary ?? ""}`);
-    let matched = 0;
+    let found = 0;
     let score = 0;
     for (const term of terms) {
-      const found = hits(title, term) * TITLE_WEIGHT + hits(text, term);
-      if (found > 0) matched++;
-      // The logarithm keeps a word repeated many times from outweighing a second word of the query.
-      score += Math.log1p(found);
+      const count = hits(title, term);
+      if (count > 0) found++;
+      score += count;
     }
-    return { row, matched, score };
+    return { row, found, score };
   });
   return scored
-    .filter((item) => item.matched > 0)
-    .sort((a, b) => b.matched - a.matched || b.score - a.score || b.row.updatedAt - a.row.updatedAt)
+    .filter((item) => item.found > 0)
+    .sort((a, b) => b.found - a.found || b.score - a.score || b.row.updatedAt - a.row.updatedAt)
     .map((item) => item.row);
 }

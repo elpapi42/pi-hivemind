@@ -1,17 +1,17 @@
 import { defineTool } from "@earendil-works/pi-durable";
-import { asConversationId, IndexDoc } from "../board.ts";
+import { asConversationId, IndexDoc, workstreamExists } from "../board.ts";
 import { LIMITS } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { envelope, ref } from "../render.ts";
-import { MESSAGE_OUTPUT } from "./schemas.ts";
+import { SEND_MESSAGE_OUTPUT } from "./schemas.ts";
 import { failure, parameters, result, toConversationId, tooLong, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
 
-export const MESSAGE_TOOL = "hivemind_message";
+export const SEND_MESSAGE_TOOL = "hivemind_send_message";
 
-export function messageTool() {
+export function sendMessageTool() {
   return defineTool({
-    name: MESSAGE_TOOL,
-    description: TOOL_DESCRIPTIONS.message,
+    name: SEND_MESSAGE_TOOL,
+    description: TOOL_DESCRIPTIONS.sendMessage,
     parameters: parameters(
       {
         to: { type: "integer", description: "Id of the conversation that receives the message." },
@@ -21,14 +21,14 @@ export function messageTool() {
       },
       ["workstream"],
     ),
-    structuredOutputSchema: MESSAGE_OUTPUT,
+    structuredOutputSchema: SEND_MESSAGE_OUTPUT,
     executionMode: "sequential",
     execute: async (args, api, context) => {
       const refuse = (error: string) => failure(error, { sent: false });
       const input = args as { to?: unknown; text?: unknown; reply?: unknown; workstream?: unknown };
       const self = api.conversationId as number;
       const to = toConversationId(input.to);
-      if (Number.isNaN(to)) return refuse("`to` must be a conversation id, a number, as the blackboard shows it.");
+      if (Number.isNaN(to)) return refuse("`to` must be a conversation id, a number, as the log or a workstream shows it.");
       if (to === self) return refuse(`Conversation ${self} is you. A message goes to another conversation.`);
       const text = toText(input.text);
       if (text === undefined) return refuse("`text` is empty. Write the message.");
@@ -38,13 +38,13 @@ export function messageTool() {
       const workstream = input.workstream === undefined || input.workstream === null ? undefined : toWorkstreamId(input.workstream);
       if (workstream !== undefined && Number.isNaN(workstream)) return refuse('`workstream` must be a workstream id such as "ws-12".');
 
+      const known = workstream === undefined || workstreamExists(await api.snapshot(IndexDoc, context), workstream);
+      if (!known) return refuse(`There is no workstream ${ref(workstream!)}. Leave \`workstream\` out, or call hivemind_list_workstreams to find the right one.`);
       const target = await api.commit(async (tx) => {
-        const known = workstream === undefined || (await tx.doc(IndexDoc)).rows[String(workstream)] !== undefined;
         const record = await tx.conversation(asConversationId(to));
-        return { known, exists: record !== undefined, owned: record?.owner !== undefined };
+        return { exists: record !== undefined, owned: record?.owner !== undefined };
       }, context);
-      if (!target.known) return refuse(`There is no workstream ${ref(workstream!)}. Leave \`workstream\` out, or call hivemind_list to find the right one.`);
-      if (!target.exists) return refuse(`There is no conversation ${to}. Conversation ids are the numbers the blackboard shows under "involved".`);
+      if (!target.exists) return refuse(`There is no conversation ${to}. Conversation ids are the numbers the log and the workstreams show.`);
       // A conversation a task created for itself, such as a subagent's, is driven by that task and takes no outside input.
       if (target.owned) return refuse(`Conversation ${to} belongs to a background task of another conversation and does not take messages.`);
 

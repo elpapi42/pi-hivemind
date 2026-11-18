@@ -6,10 +6,10 @@ test("a message wakes an idle conversation, which reads who sent it, and its ans
   const t = await setup();
   const [a, b] = t.conversations as [(typeof t.conversations)[0], (typeof t.conversations)[0]];
   try {
-    await t.call(a, "hivemind_open", { title: "Bulk invoice export", description: "CSV export for finance.", involvement: "Implements it." });
+    await t.call(a, "hivemind_open_workstream", { title: "Bulk invoice export", description: "CSV export for finance.", involvement: "Implements it." });
     // The scripted model obeys "call <tool> <json>" also inside a message, so this asks conversation b to answer.
-    const reply = `call hivemind_message ${JSON.stringify({ to: Number(a.id), text: "Backend merged; the screen is in review.", reply: false })}`;
-    const sent = await t.call(a, "hivemind_message", { to: Number(b.id), text: reply, reply: true, workstream: "ws-1" });
+    const reply = `call hivemind_send_message ${JSON.stringify({ to: Number(a.id), text: "Backend merged; the screen is in review.", reply: false })}`;
+    const sent = await t.call(a, "hivemind_send_message", { to: Number(b.id), text: reply, reply: true, workstream: "ws-1" });
     assert.match(sent, new RegExp(`Sent to conversation ${b.id}\\. Its answer will arrive later as a message to you`));
 
     const received = (await t.messages(b)).map(textOf);
@@ -32,10 +32,10 @@ test("a message is refused when it has nowhere to go or says too little", async 
   const [a, b] = t.conversations as [(typeof t.conversations)[0], (typeof t.conversations)[0]];
   try {
     const text = "Where does the export stand?";
-    assert.match(await t.call(a, "hivemind_message", { to: Number(a.id), text, reply: true }), new RegExp(`Conversation ${a.id} is you\\.`));
-    assert.match(await t.call(a, "hivemind_message", { to: 987654, text, reply: true }), /There is no conversation 987654\./);
-    assert.match(await t.call(a, "hivemind_message", { to: Number(b.id), text, reply: true, workstream: "ws-5" }), /There is no workstream ws-5\./);
-    assert.match(await t.call(a, "hivemind_message", { to: Number(b.id), text: " ", reply: true }), /`text` is empty/);
+    assert.match(await t.call(a, "hivemind_send_message", { to: Number(a.id), text, reply: true }), new RegExp(`Conversation ${a.id} is you\\.`));
+    assert.match(await t.call(a, "hivemind_send_message", { to: 987654, text, reply: true }), /There is no conversation 987654\./);
+    assert.match(await t.call(a, "hivemind_send_message", { to: Number(b.id), text, reply: true, workstream: "ws-5" }), /There is no workstream ws-5\./);
+    assert.match(await t.call(a, "hivemind_send_message", { to: Number(b.id), text: " ", reply: true }), /`text` is empty/);
     assert.equal((await t.messages(b)).length, 0, "nothing reached the other conversation");
   } finally {
     await t.close();
@@ -48,7 +48,7 @@ test("a conversation that a task owns takes no messages", async () => {
   try {
     const spawned = Number(/spawned (\d+)/.exec(await t.call(a!, "spawn", {}))![1]);
     assert.match(
-      await t.call(a!, "hivemind_message", { to: spawned, text: "Hello.", reply: false }),
+      await t.call(a!, "hivemind_send_message", { to: spawned, text: "Hello.", reply: false }),
       new RegExp(`Conversation ${spawned} belongs to a background task of another conversation and does not take messages\\.`),
     );
   } finally {
@@ -62,7 +62,7 @@ test("a message to a conversation that is working joins its work after the curre
   try {
     const working = t.say(b, "call pause {}");
     await new Promise((resolve) => setTimeout(resolve, 40));
-    await t.call(a, "hivemind_message", { to: Number(b.id), text: "Use semicolons as separators.", reply: false });
+    await t.call(a, "hivemind_send_message", { to: Number(b.id), text: "Use semicolons as separators.", reply: false });
     await working;
 
     const seen = (await t.messages(b)).map((message) => `${message.role}: ${textOf(message)}`);

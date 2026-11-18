@@ -1,4 +1,6 @@
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
+import { DirectoryDoc, IndexDoc, LogPageDoc, WorkstreamDoc } from "../board.ts";
+import type { LogSource } from "../log.ts";
 
 type Structured = NonNullable<ToolExecutionResult["structuredOutput"]>;
 
@@ -28,7 +30,7 @@ export function parameters(properties: Record<string, object>, optional: readonl
   } as const;
 }
 
-export const WORKSTREAM_PARAMETER = { type: ["string", "integer"], description: 'Id of the workstream, as the blackboard shows it: "ws-12", or the number alone.' };
+export const WORKSTREAM_PARAMETER = { type: ["string", "integer"], description: 'Id of the workstream: "ws-12", or the number alone.' };
 
 /** A workstream id from "ws-12", "12" or 12; `NaN` for anything else. */
 export function toWorkstreamId(value: unknown): number {
@@ -59,3 +61,20 @@ export function tooLong(name: string, text: string | undefined, limit: number): 
 
 /** The first reason that is not `undefined`. */
 export const firstReason = (...reasons: (string | undefined)[]): string | undefined => reasons.find((reason) => reason !== undefined);
+
+/** A moment from "2026-11-17", "2026-11-17T14:30:00Z" or a number of milliseconds; `NaN` for anything else. */
+export function toTime(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : Number.NaN;
+  return typeof value === "string" && value.trim() !== "" ? Date.parse(value.trim()) : Number.NaN;
+}
+
+/** The committed documents of the log, as a tool reads them. */
+export function sourceOf(api: { snapshot: (...args: never[]) => Promise<unknown> }, context: unknown): LogSource {
+  const snapshot = api.snapshot as unknown as (...args: unknown[]) => Promise<never>;
+  return {
+    index: () => snapshot(IndexDoc, context),
+    page: (number) => snapshot(LogPageDoc, String(number), context),
+    piece: (number) => snapshot(DirectoryDoc, String(number), context),
+    workstream: (id) => snapshot(WorkstreamDoc, String(id), context),
+  };
+}

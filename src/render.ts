@@ -1,4 +1,5 @@
-import type { IndexRow, Workstream } from "./board.ts";
+import type { OpenRow, Workstream } from "./board.ts";
+import type { Found } from "./log.ts";
 
 /** A time as the model reads it: UTC, to the minute. */
 export const stamp = (ms: number): string => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
@@ -14,33 +15,29 @@ const clip = (text: string, limit: number): string => {
 const involvedList = (conversations: readonly number[], self: number): string =>
   conversations.length === 0 ? "nobody" : conversations.map((id) => (id === self ? `${id} (you)` : String(id))).join(", ");
 
-/** One workstream of a list: enough to decide whether to read it. */
-export function rowText(row: IndexRow, self: number): string {
-  const state = row.status === "done" ? "done" : "open";
-  const text = row.status === "done" && row.summary !== undefined ? `Closing summary: ${clip(row.summary, 280)}` : clip(row.description, 280);
-  return [`${ref(row.id)} · ${row.title} · ${state}`, `  Updated ${stamp(row.updatedAt)} UTC · involved: ${involvedList(row.involved, self)}`, `  ${text}`].join("\n");
+/** One entry of the log, on one line. `named` is false when every entry shown is about the same workstream. */
+export function entryText(entry: Found, self: number, named = true): string {
+  const who = entry.by === self ? `conversation ${entry.by} (you)` : `conversation ${entry.by}`;
+  const about = named && entry.workstream !== undefined ? ` · ${ref(entry.workstream)}` : "";
+  return `${entry.n} · ${stamp(entry.at)} · ${who}${about} · ${entry.text}`;
 }
 
-/** The log entries one page shows, as indexes `start` to `end` (exclusive): the newest page, or the page before entry `before`. */
-export function logPage(total: number, pageSize: number, before?: number): { start: number; end: number } {
-  const end = before === undefined ? total : Math.max(0, Math.min(total, before - 1));
-  return { start: Math.max(0, end - pageSize), end };
+/** One open workstream of a list: enough to decide whether to read it. */
+export function rowText(row: OpenRow, description: string, self: number): string {
+  return [`${ref(row.id)} · ${row.title}`, `  Changed ${stamp(row.updatedAt)} UTC · involved: ${involvedList(row.involved, self)}`, `  ${clip(description, 280)}`].join("\n");
 }
 
-/**
- * A whole workstream. The log is shown a page at a time, newest page first: `before` is the number of the entry the
- * page ends before, and absent for the newest page.
- */
-export function workstreamText(workstream: Workstream, self: number, pageSize: number, before?: number): string {
+/** A whole workstream, with the newest of the log entries that name it. `older` is set when earlier entries exist. */
+export function workstreamText(workstream: Workstream, entries: readonly Found[], older: number | undefined, self: number): string {
   const lines = [
     `${ref(workstream.id)} · ${workstream.title} · ${workstream.status}`,
-    `Opened ${stamp(workstream.openedAt)} UTC by conversation ${workstream.openedBy} · updated ${stamp(workstream.updatedAt)} UTC` +
+    `Opened ${stamp(workstream.openedAt)} UTC by conversation ${workstream.openedBy} · changed ${stamp(workstream.updatedAt)} UTC` +
       (workstream.closedAt === undefined ? "" : ` · marked done ${stamp(workstream.closedAt)} UTC`),
     "",
     "Description:",
     workstream.description,
   ];
-  if (workstream.summary !== undefined) lines.push("", "Closing summary:", workstream.summary);
+  if (workstream.summary !== undefined) lines.push("", workstream.status === "done" ? "Closing summary:" : "Closing summary from when it was last done:", workstream.summary);
 
   lines.push("", "Involved:");
   for (const involvement of Object.values(workstream.involved).sort((a, b) => a.since - b.since)) {
@@ -48,14 +45,9 @@ export function workstreamText(workstream: Workstream, self: number, pageSize: n
     lines.push(`- ${who}, since ${stamp(involvement.since)}: ${involvement.text}`);
   }
 
-  const total = workstream.log.length;
-  const { start, end } = logPage(total, pageSize, before);
-  lines.push("", end === 0 ? "Log: no earlier entries." : `Log (entries ${start + 1} to ${end} of ${total}):`);
-  for (let i = start; i < end; i++) {
-    const entry = workstream.log[i]!;
-    lines.push(`${i + 1}. ${stamp(entry.at)} · conversation ${entry.by} · ${entry.text}`);
-  }
-  if (start > 0) lines.push("", `Older entries exist. Call hivemind_read with before ${start + 1} to see them.`);
+  lines.push("", entries.length === 0 ? "Log entries: no earlier entries." : "Log entries, oldest first:");
+  for (const entry of entries) lines.push(entryText(entry, self, false));
+  if (older !== undefined) lines.push("", `Older entries exist. Call hivemind_read_workstream with before ${older} to see them.`);
   return lines.join("\n");
 }
 

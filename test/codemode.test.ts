@@ -31,50 +31,70 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
   };
   try {
     const got = await run(a, [
-      `show("missing", await tools.hivemind_read({ workstream: "ws-4" }));`,
-      `show("opened", await tools.hivemind_open({ title: "Bulk invoice export", description: "CSV export for finance.", involvement: "Implements it." }));`,
-      `show("twin", await tools.hivemind_open({ title: "Invoice export in bulk", description: "Same?", involvement: "Checks it." }));`,
-      `show("updated", await tools.hivemind_update({ workstream: "ws-1", log: "Schema agreed with finance." }));`,
-      `show("noop", await tools.hivemind_update({ workstream: "ws-1" }));`,
-      `show("list", await tools.hivemind_list({}));`,
-      `show("read", await tools.hivemind_read({ workstream: "ws-1" }));`,
-      `show("sent", await tools.hivemind_message({ to: ${b.id}, text: "Heads up: I am on the invoice export.", reply: false, workstream: "ws-1" }));`,
-      `show("self", await tools.hivemind_message({ to: ${a.id}, text: "hello", reply: false }));`,
+      `show("missing", await tools.hivemind_read_workstream({ workstream: "ws-4" }));`,
+      `show("opened", await tools.hivemind_open_workstream({ title: "Bulk invoice export", description: "CSV export for finance.", involvement: "Implements it." }));`,
+      `show("twin", await tools.hivemind_open_workstream({ title: "Invoice export in bulk", description: "Same?", involvement: "Checks it." }));`,
+      `show("wrote", await tools.hivemind_write_log({ text: "Schema agreed with finance.", workstream: "ws-1" }));`,
+      `show("plain", await tools.hivemind_write_log({ text: "Told Luis that the test database is refreshed every night." }));`,
+      `show("long", await tools.hivemind_write_log({ text: "${"x".repeat(241)}" }));`,
+      `show("longish", await tools.hivemind_write_log({ text: "${"x".repeat(210)}" }));`,
+      `show("updated", await tools.hivemind_update_workstream({ workstream: "ws-1", description: "Schema agreed. Backend next." }));`,
+      `show("noop", await tools.hivemind_update_workstream({ workstream: "ws-1" }));`,
+      `show("log", await tools.hivemind_read_log({}));`,
+      `show("found", await tools.hivemind_read_log({ query: "schema payroll", limit: 1 }));`,
+      `show("list", await tools.hivemind_list_workstreams({}));`,
+      `show("read", await tools.hivemind_read_workstream({ workstream: "ws-1" }));`,
+      `show("sent", await tools.hivemind_send_message({ to: ${b.id}, text: "Heads up: I am on the invoice export.", reply: false, workstream: "ws-1" }));`,
+      `show("self", await tools.hivemind_send_message({ to: ${a.id}, text: "hello", reply: false }));`,
       `show("whoami", await tools.hivemind_whoami({}));`,
     ]);
 
-    assert.deepEqual(got("missing"), { you: a.id, error: "There is no workstream ws-4. Call hivemind_list to see the ones that exist." }, "a refusal comes back as the object, and the script goes on");
+    assert.deepEqual(got("missing"), { you: a.id, error: "There is no workstream ws-4. Call hivemind_list_workstreams to see the open ones." }, "a refusal comes back as the object, and the script goes on");
     assert.deepEqual(got("opened"), { id: "ws-1", similar: [] });
     assert.deepEqual(got("twin"), { id: "ws-2", similar: [{ id: "ws-1", title: "Bulk invoice export" }] });
-    assert.equal(got("updated").error, undefined);
-    assert.match(got("updated").changed.join(), /^added log entry \d+$/);
-    assert.deepEqual(got("noop"), { changed: [], error: "Pass at least one of `log`, `description`, `involvement`, `status` or `summary`." });
+    assert.deepEqual(got("wrote"), { n: 3 });
+    assert.deepEqual(got("plain"), { n: 4 });
+    assert.match(got("long").error, /`text` has 241 characters; the most is 200\./);
+    assert.equal(got("long").n, undefined);
+    assert.deepEqual(got("longish"), { n: 5, warning: "The entry has 210 characters. The most is 200: write shorter entries." });
+    assert.deepEqual(got("updated"), { changed: ["rewrote the description"] });
+    assert.deepEqual(got("noop"), { changed: [], error: "Pass at least one of `description`, `involvement`, `status` or `summary`." });
+
+    const log = got("log");
+    assert.deepEqual([log.you, log.total, log.older], [a.id, 5, undefined]);
+    assert.deepEqual(log.entries.map((entry: { n: number }) => entry.n), [1, 2, 3, 4, 5]);
+    assert.deepEqual(Object.keys(log.entries[2]).sort(), ["at", "by", "n", "text", "workstream"]);
+    assert.deepEqual([log.entries[2].workstream, log.entries[2].by, log.entries[2].text], ["ws-1", a.id, "Schema agreed with finance."]);
+    assert.match(log.entries[2].at, /^\d{4}-\d\d-\d\dT/);
+    assert.equal(log.entries[3].workstream, undefined, "an entry about no workstream has no workstream");
+    const found = got("found");
+    assert.deepEqual(found.entries.map((entry: { n: number }) => entry.n), [3]);
+    assert.equal(found.matchedWords, 1);
 
     const list = got("list");
     assert.equal(list.you, a.id);
     assert.equal(list.total, 2);
-    assert.deepEqual(Object.keys(list.workstreams[0]).sort(), ["description", "id", "involved", "status", "title", "updatedAt"]);
-    assert.deepEqual(list.workstreams.map((w: { id: string }) => w.id).sort(), ["ws-1", "ws-2"]);
-    assert.deepEqual(list.workstreams[0].involved, [a.id]);
+    assert.deepEqual(Object.keys(list.workstreams[0]).sort(), ["description", "id", "involved", "title", "updatedAt"]);
+    assert.deepEqual(list.workstreams.map((w: { id: string }) => w.id), ["ws-1", "ws-2"], "the one changed last is first");
+    assert.deepEqual([list.workstreams[0].involved, list.workstreams[0].description], [[a.id], "Schema agreed. Backend next."]);
     assert.match(list.workstreams[0].updatedAt, /^\d{4}-\d\d-\d\dT/);
 
     const read = got("read");
     assert.equal(read.you, a.id);
     assert.equal(read.workstream.title, "Bulk invoice export");
     assert.deepEqual(read.workstream.involved.map((i: { conversation: number; part: string }) => [i.conversation, i.part]), [[a.id, "Implements it."]]);
-    const last = read.workstream.log.at(-1);
-    assert.equal(last.text, "Schema agreed with finance.");
-    assert.equal(last.n, read.workstream.logTotal);
-    assert.equal(last.by, a.id);
+    assert.deepEqual(read.workstream.entries.map((entry: { n: number; text: string }) => [entry.n, entry.text]), [[1, "Opened ws-1: Bulk invoice export"], [3, "Schema agreed with finance."]]);
+    assert.equal(read.workstream.entries[1].by, a.id);
+    assert.equal(read.workstream.older, undefined);
 
     assert.deepEqual(got("sent"), { sent: true });
     assert.deepEqual(got("self"), { sent: false, error: `Conversation ${a.id} is you. A message goes to another conversation.` });
     assert.deepEqual(got("whoami"), {
       you: a.id,
-      // Open ones first, the most recently updated first: ws-1 got a log entry after ws-2 was opened.
+      // The most recently changed first: the description of ws-1 was rewritten after ws-2 was opened.
       workstreams: [
-        { id: "ws-1", title: "Bulk invoice export", status: "open", part: "Implements it." },
-        { id: "ws-2", title: "Invoice export in bulk", status: "open", part: "Checks it." },
+        { id: "ws-1", title: "Bulk invoice export", part: "Implements it." },
+        { id: "ws-2", title: "Invoice export in bulk", part: "Checks it." },
       ],
     });
 
@@ -87,11 +107,10 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     assert.equal(copy.copyOfWorkstreams.length, 2);
 
     const system = t.systems[0]!;
-    for (const name of ["hivemind_list", "hivemind_read", "hivemind_open", "hivemind_update", "hivemind_message", "hivemind_whoami"]) {
-      assert.ok(system.includes(name), `${name} is declared for scripts`);
-    }
-    assert.ok(system.includes("logTotal") && system.includes("copyOfWorkstreams"), "with the types of their objects");
-    assert.match(await t.call(a, "hivemind_list", {}), /hivemind_list/, "the model cannot call a tool directly; it is told the tool is not available");
+    const names = ["hivemind_write_log", "hivemind_read_log", "hivemind_list_workstreams", "hivemind_read_workstream", "hivemind_open_workstream", "hivemind_update_workstream", "hivemind_send_message", "hivemind_whoami"];
+    for (const name of names) assert.ok(system.includes(name), `${name} is declared for scripts`);
+    assert.ok(system.includes("matchedWords") && system.includes("copyOfWorkstreams"), "with the types of their objects");
+    assert.match(await t.call(a, "hivemind_read_log", {}), /hivemind_read_log/, "the model cannot call a tool directly; it is told the tool is not available");
   } finally {
     await t.close();
   }

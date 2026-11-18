@@ -11,31 +11,50 @@ const ID = string('Workstream id, such as "ws-12".');
 const STATUS = { type: "string", enum: ["open", "done"] };
 const TIME = string("ISO time.");
 const ERROR = (then: string) => string(`Why the call was refused; ${then}.`);
+const OLDER = integer("Present when older entries exist that were not read: pass it as `before` to read on.");
 
-export const LIST_OUTPUT = parameters(
+const ENTRY = { n: integer("Number of the entry in the log."), at: TIME, by: integer("Id of the conversation that wrote it."), text: string() };
+
+export const WRITE_LOG_OUTPUT = parameters(
+  {
+    n: integer("Number of the new entry."),
+    warning: string("Present when the entry was written but is longer than it may be."),
+    error: ERROR("nothing was written and `n` is absent"),
+  },
+  ["n", "warning", "error"],
+);
+
+export const READ_LOG_OUTPUT = parameters(
   {
     you: YOU,
-    total: integer("How many workstreams match; `workstreams` holds the first of them."),
+    total: integer("How many entries the log has."),
+    entries: array(parameters({ ...ENTRY, workstream: string('The workstream it is about, such as "ws-12", when it names one.') }, ["workstream"]), "The entries, oldest first."),
+    older: OLDER,
+    matchedWords: integer("Present when no entry has every word of `query`: how many of its words the entries have."),
+    error: ERROR("`entries` is then empty"),
+  },
+  ["older", "matchedWords", "error"],
+);
+
+export const LIST_WORKSTREAMS_OUTPUT = parameters(
+  {
+    you: YOU,
+    total: integer("How many open workstreams match; `workstreams` holds the first of them."),
     workstreams: array(
-      parameters(
-        {
-          id: ID,
-          title: string(),
-          status: STATUS,
-          updatedAt: TIME,
-          involved: array(integer(), "Ids of the conversations involved."),
-          description: string(),
-          summary: string("The closing summary, when it is done."),
-        },
-        ["summary"],
-      ),
+      parameters({
+        id: ID,
+        title: string(),
+        updatedAt: string("ISO time its description, an involvement or its status last changed."),
+        involved: array(integer(), "Ids of the conversations involved."),
+        description: string(),
+      }),
     ),
     error: ERROR("`workstreams` is then empty"),
   },
   ["error"],
 );
 
-export const READ_OUTPUT = parameters(
+export const READ_WORKSTREAM_OUTPUT = parameters(
   {
     you: YOU,
     workstream: parameters(
@@ -45,22 +64,22 @@ export const READ_OUTPUT = parameters(
         status: STATUS,
         updatedAt: TIME,
         description: string(),
-        summary: string("The closing summary, when it is done."),
+        summary: string("The closing summary, when it is done or was done before."),
         involved: array(
           parameters({ conversation: integer(), part: string("Its own account of its part."), since: TIME }),
           "Every conversation involved, earliest first.",
         ),
-        log: array(parameters({ n: integer("Number of the entry."), at: TIME, by: integer("Id of the conversation that wrote it."), text: string() }), "One page of the log, oldest first."),
-        logTotal: integer("How many log entries there are in all."),
+        entries: array(parameters(ENTRY), "The newest log entries about it, oldest first."),
+        older: OLDER,
       },
-      ["summary"],
+      ["summary", "older"],
     ),
     error: ERROR("`workstream` is then absent"),
   },
   ["workstream", "error"],
 );
 
-export const OPEN_OUTPUT = parameters(
+export const OPEN_WORKSTREAM_OUTPUT = parameters(
   {
     id: string("Id of the new workstream."),
     similar: array(parameters({ id: ID, title: string() }), "Open workstreams with similar titles."),
@@ -69,15 +88,15 @@ export const OPEN_OUTPUT = parameters(
   ["id", "error"],
 );
 
-export const UPDATE_OUTPUT = parameters(
+export const UPDATE_WORKSTREAM_OUTPUT = parameters(
   {
-    changed: array(string(), 'What was done, such as "added log entry 4".'),
+    changed: array(string(), 'What was done, such as "rewrote the description".'),
     error: ERROR("nothing changed"),
   },
   ["error"],
 );
 
-export const MESSAGE_OUTPUT = parameters(
+export const SEND_MESSAGE_OUTPUT = parameters(
   {
     sent: { type: "boolean" },
     error: ERROR("nothing was sent"),
@@ -85,14 +104,14 @@ export const MESSAGE_OUTPUT = parameters(
   ["error"],
 );
 
-const PART = parameters({ id: ID, title: string(), status: STATUS, part: string("The conversation's own account of its part.") });
+const PART = parameters({ id: ID, title: string(), part: string("The conversation's own account of its part.") });
 
 export const WHOAMI_OUTPUT = parameters(
   {
     you: YOU,
     copyOf: integer("The conversation this one started as a copy of, when it is a copy."),
-    workstreams: array(PART, "The workstreams you are involved in, open ones first."),
-    copyOfWorkstreams: array(PART, "The workstreams the conversation in `copyOf` is involved in."),
+    workstreams: array(PART, "The open workstreams you are involved in, most recently changed first."),
+    copyOfWorkstreams: array(PART, "The open workstreams the conversation in `copyOf` is involved in."),
   },
   ["copyOf", "copyOfWorkstreams"],
 );

@@ -1,33 +1,33 @@
 import { defineTool } from "@earendil-works/pi-durable";
 import { IndexDoc, openWorkstream } from "../board.ts";
-import { LIMITS } from "../config.ts";
+import { LIMITS, type HivemindConfig } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { ref } from "../render.ts";
-import { search } from "../search.ts";
-import { OPEN_OUTPUT } from "./schemas.ts";
+import { searchTitles } from "../search.ts";
+import { OPEN_WORKSTREAM_OUTPUT } from "./schemas.ts";
 import { failure, firstReason, parameters, result, tooLong, toText } from "./shared.ts";
 
-export const OPEN_TOOL = "hivemind_open";
+export const OPEN_WORKSTREAM_TOOL = "hivemind_open_workstream";
 
 /** How many open workstreams with a similar title the answer names, so a duplicate is noticed at once. */
 const SIMILAR_SHOWN = 3;
 
-export function openTool() {
+export function openWorkstreamTool(config: HivemindConfig) {
   return defineTool({
-    name: OPEN_TOOL,
-    description: TOOL_DESCRIPTIONS.open,
+    name: OPEN_WORKSTREAM_TOOL,
+    description: TOOL_DESCRIPTIONS.openWorkstream,
     parameters: parameters({
       title: { type: "string", description: "Short and stable name of the work." },
       description: { type: "string", description: "The current state: the goal, where it stands, what is next or blocking." },
       involvement: { type: "string", description: "This conversation's part: what it is responsible for, who it works with and where." },
     }),
-    structuredOutputSchema: OPEN_OUTPUT,
+    structuredOutputSchema: OPEN_WORKSTREAM_OUTPUT,
     executionMode: "sequential",
     execute: async (args, api, context) => {
       const refuse = (error: string) => failure(error, { similar: [] });
       const input = args as { title?: unknown; description?: unknown; involvement?: unknown };
       const self = api.conversationId as number;
-      const title = toText(input.title);
+      const title = toText(input.title)?.replace(/\s+/g, " ");
       const description = toText(input.description);
       const involvement = toText(input.involvement);
       if (title === undefined || description === undefined || involvement === undefined) {
@@ -41,11 +41,10 @@ export function openTool() {
       if (reason !== undefined) return refuse(reason);
 
       const opened = await api.commit(async (tx) => {
-        const others = Object.values((await tx.doc(IndexDoc)).rows).filter((row) => row.status === "open");
-        const similar = search(others, title)
+        const similar = searchTitles(Object.values((await tx.doc(IndexDoc)).open), title)
           .slice(0, SIMILAR_SHOWN)
           .map((row) => ({ id: ref(row.id), title: row.title }));
-        const workstream = await openWorkstream(tx, { title, description, involvement, by: self, at: api.now() });
+        const workstream = await openWorkstream(tx, config, { title, description, involvement, by: self, at: api.now() });
         return { id: workstream.id, similar };
       }, context);
 

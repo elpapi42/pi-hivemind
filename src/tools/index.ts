@@ -1,18 +1,29 @@
 import type { HivemindConfig } from "../config.ts";
-import { listTool } from "./list.ts";
-import { messageTool } from "./message.ts";
-import { openTool } from "./open.ts";
-import { readTool } from "./read.ts";
-import { updateTool } from "./update.ts";
+import { listWorkstreamsTool } from "./list-workstreams.ts";
+import { openWorkstreamTool } from "./open-workstream.ts";
+import { readLogTool } from "./read-log.ts";
+import { readWorkstreamTool } from "./read-workstream.ts";
+import { sendMessageTool } from "./send-message.ts";
+import { updateWorkstreamTool } from "./update-workstream.ts";
 import { whoamiTool } from "./whoami.ts";
+import { writeLogTool } from "./write-log.ts";
 
-/** The six tools. With `codemodeOnly`, none is offered to the model directly: codemode scripts call them. */
+/** The eight tools. With `codemodeOnly`, none is offered to the model directly: codemode scripts call them. */
 export function hivemindTools(config: HivemindConfig) {
-  const tools = [listTool(config), readTool(config), openTool(), updateTool(), messageTool(), whoamiTool()];
+  const tools = [
+    writeLogTool(config),
+    readLogTool(config),
+    listWorkstreamsTool(config),
+    readWorkstreamTool(config),
+    openWorkstreamTool(config),
+    updateWorkstreamTool(config),
+    sendMessageTool(),
+    whoamiTool(),
+  ];
   return config.codemodeOnly ? tools.map(scripted) : tools;
 }
 
-type AnyTool = ReturnType<typeof listTool>;
+type AnyTool = ReturnType<typeof readLogTool>;
 
 /**
  * A tool as codemode scripts call it. In a script an error result rejects and ends the script, so a refusal is

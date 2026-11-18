@@ -1,19 +1,16 @@
 import { defineTool } from "@earendil-works/pi-durable";
-import { IndexDoc, WorkstreamDoc, type IndexRow } from "../board.ts";
+import type { OpenRow } from "../board.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { ref } from "../render.ts";
 import { WHOAMI_OUTPUT } from "./schemas.ts";
-import { parameters, result } from "./shared.ts";
+import { parameters, result, sourceOf } from "./shared.ts";
 
 export const WHOAMI_TOOL = "hivemind_whoami";
 
-/** The workstreams a conversation is involved in, open ones first, each newest first. */
-const involving = (rows: readonly IndexRow[], conversation: number): IndexRow[] =>
-  rows
-    .filter((row) => row.involved.includes(conversation))
-    .sort((a, b) => Number(a.status === "done") - Number(b.status === "done") || b.updatedAt - a.updatedAt);
+/** The open workstreams a conversation is involved in, most recently changed first. */
+const involving = (rows: readonly OpenRow[], conversation: number): OpenRow[] => rows.filter((row) => row.involved.includes(conversation)).sort((a, b) => b.updatedAt - a.updatedAt);
 
-const line = (row: IndexRow): string => `- ${ref(row.id)} · ${row.title} · ${row.status}`;
+const line = (row: OpenRow): string => `- ${ref(row.id)} · ${row.title}`;
 
 /**
  * The only place a conversation learns its id. No answer of the other tools states it in text, and the prompt section
@@ -30,26 +27,28 @@ export function whoamiTool() {
     execute: async (_args, api, context) => {
       const self = api.conversationId as number;
       const record = await api.commit((tx) => tx.conversation(api.conversationId), context);
-      const rows = Object.values((await api.snapshot(IndexDoc, context))?.rows ?? {});
+      const source = sourceOf(api, context);
+      const rows = Object.values((await source.index())?.open ?? {});
       const origin = record?.parent?.conversationId as number | undefined;
 
       /** The workstreams with the conversation's own account of its part, which only the workstream itself holds. */
       const parts = async (conversation: number) =>
         Promise.all(
-          involving(rows, conversation).map(async (row) => {
-            const workstream = await api.snapshot(WorkstreamDoc, String(row.id), context);
-            return { id: ref(row.id), title: row.title, status: row.status, part: workstream?.involved[String(conversation)]?.text ?? "" };
-          }),
+          involving(rows, conversation).map(async (row) => ({
+            id: ref(row.id),
+            title: row.title,
+            part: (await source.workstream(row.id))?.involved[String(conversation)]?.text ?? "",
+          })),
         );
 
       const own = involving(rows, self);
       const lines = [`You are conversation ${self}.`];
       if (origin !== undefined) {
         lines.push(
-          `This conversation started as a copy of conversation ${origin}. What you remember from before the copy was done by conversation ${origin}, and the blackboard records it under ${origin}, not under you.`,
+          `This conversation started as a copy of conversation ${origin}. What you remember from before the copy was done by conversation ${origin}, and the log and the workstreams record it under ${origin}, not under you.`,
         );
       }
-      lines.push("", own.length === 0 ? "You are not involved in any workstream." : `You are involved in ${own.length === 1 ? "this workstream" : "these workstreams"}:`, ...own.map(line));
+      lines.push("", own.length === 0 ? "You are not involved in any open workstream." : `You are involved in ${own.length === 1 ? "this open workstream" : "these open workstreams"}:`, ...own.map(line));
       const theirs = origin === undefined ? [] : involving(rows, origin);
       if (origin !== undefined && theirs.length > 0) lines.push("", `Conversation ${origin} is involved in:`, ...theirs.map(line));
 
