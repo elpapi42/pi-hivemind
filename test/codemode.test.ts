@@ -36,7 +36,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
       `show("twin", await tools.hivemind_open_workstream({ title: "Invoice export in bulk", description: "Same?", involvement: "Checks it." }));`,
       `show("wrote", await tools.hivemind_write_log({ text: "Schema agreed with finance.", workstream: "ws-1" }));`,
       `show("plain", await tools.hivemind_write_log({ text: "Told Luis that the test database is refreshed every night." }));`,
-      `show("long", await tools.hivemind_write_log({ text: "${"x".repeat(241)}" }));`,
+      `try { await tools.hivemind_write_log({ text: "${"x".repeat(241)}" }); show("long", "written"); } catch (error) { show("long", String(error.message)); }`,
       `show("longish", await tools.hivemind_write_log({ text: "${"x".repeat(210)}" }));`,
       `show("updated", await tools.hivemind_update_workstream({ workstream: "ws-1", description: "Schema agreed. Backend next." }));`,
       `show("noop", await tools.hivemind_update_workstream({ workstream: "ws-1" }));`,
@@ -54,8 +54,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     assert.deepEqual(got("twin"), { id: "ws-2", similar: [{ id: "ws-1", title: "Bulk invoice export" }] });
     assert.deepEqual(got("wrote"), { n: 3 });
     assert.deepEqual(got("plain"), { n: 4 });
-    assert.match(got("long").error, /`text` has 241 characters; the most is 200\./);
-    assert.equal(got("long").n, undefined);
+    assert.match(got("long"), /The entry is too long: `text` has 241 characters, and the most is 200\..* Nothing was written to the log\./, "an entry that is not written is an error in the script, not a field to overlook");
     assert.deepEqual(got("longish"), { n: 5, warning: "The entry has 210 characters. The most is 200: write shorter entries." });
     assert.deepEqual(got("updated"), { changed: ["rewrote the description"] });
     assert.deepEqual(got("noop"), { changed: [], error: "Pass at least one of `description`, `involvement`, `status` or `summary`." });
@@ -97,6 +96,13 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
         { id: "ws-2", title: "Invoice export in bulk", part: "Checks it." },
       ],
     });
+
+    // A script that does not catch the error stops there, and the conversation reads the reason.
+    await t.say(a, `call codemode ${JSON.stringify({ code: `await tools.hivemind_write_log({ text: "${"y".repeat(300)}" }); console.log("went on");` })}`);
+    const stopped = (await t.messages(a)).map(textOf).filter((text) => text.includes("has 300 characters")).at(-1);
+    assert.match(stopped ?? "", /The entry is too long: `text` has 300 characters, and the most is 200\./);
+    assert.ok(!(stopped ?? "").includes("went on"), "the script did not go on as if the entry were written");
+    assert.equal((await t.read()).total, 5, "and nothing was written");
 
     // A fork learns that it is a copy, and of whom.
     const fork = await t.fork(a);

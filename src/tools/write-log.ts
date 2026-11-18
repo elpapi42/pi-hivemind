@@ -4,7 +4,7 @@ import { ENTRY_SLACK, LIMITS, type HivemindConfig } from "../config.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { ref } from "../render.ts";
 import { WRITE_LOG_OUTPUT } from "./schemas.ts";
-import { failure, parameters, result, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
+import { parameters, rejection, result, toText, toWorkstreamId, WORKSTREAM_PARAMETER } from "./shared.ts";
 
 export const WRITE_LOG_TOOL = "hivemind_write_log";
 
@@ -22,12 +22,13 @@ export function writeLogTool(config: HivemindConfig) {
     structuredOutputSchema: WRITE_LOG_OUTPUT,
     executionMode: "sequential",
     execute: async (args, api, context) => {
-      const refuse = (error: string) => failure(error, {});
+      // An entry that is not written must never pass unnoticed, so every refusal here ends the script that made the call.
+      const refuse = (error: string) => rejection(`${error} Nothing was written to the log.`);
       const input = args as { text?: unknown; workstream?: unknown };
       const text = toText(input.text)?.replace(/\s+/g, " ");
       if (text === undefined) return refuse("`text` is empty. Write the entry.");
       if (text.length > LIMITS.entry + ENTRY_SLACK) {
-        return refuse(`\`text\` has ${text.length} characters; the most is ${LIMITS.entry}. An entry holds one fact: shorten it, or write two entries.`);
+        return refuse(`The entry is too long: \`text\` has ${text.length} characters, and the most is ${LIMITS.entry}. An entry holds one fact: shorten it, or split it into two entries, and write it again.`);
       }
       const id = input.workstream === undefined || input.workstream === null ? undefined : toWorkstreamId(input.workstream);
       if (id !== undefined && Number.isNaN(id)) return refuse('`workstream` must be a workstream id such as "ws-12".');

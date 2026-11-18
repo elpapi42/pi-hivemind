@@ -19,7 +19,7 @@ The extension names no chat, ticket or code hosting service. It knows only conve
 
 ## The log
 
-An entry is one fact in at most 200 characters, about 50 tokens. A model cannot count characters exactly, so the tool keeps an entry that is up to 40 characters over and tells its writer; a longer one is refused. It has the time, the conversation that wrote it, and the workstream it is about when there is one. Its number is its place in the log.
+An entry is one fact in at most 200 characters, about 50 tokens. A model cannot count characters exactly, so the tool keeps an entry that is up to 40 characters over and tells its writer. A longer one fails the call with both lengths, also in a script, so an entry is never lost unnoticed. It has the time, the conversation that wrote it, and the workstream it is about when there is one. Its number is its place in the log.
 
 This is how a conversation reads the log:
 
@@ -124,7 +124,7 @@ The extension never decides who gets a message. The sender reads in the log and 
 | `hivemind_send_message` | Sends a message to another conversation | `{ sent }` |
 | `hivemind_whoami` | Tells the caller its own conversation id and the open workstreams it is involved in | `{ you, workstreams: [{ id, title, part }], copyOf?, copyOfWorkstreams? }` |
 
-Every tool declares its object as structured output, so codemode scripts receive it and the codemode section shows its type; a model that calls a tool directly reads text. Times are ISO strings. Each tool checks what it is asked and refuses with an explanation: in the object, `error` says why, and the script goes on. Asking for a workstream that does not exist creates nothing.
+Every tool declares its object as structured output, so codemode scripts receive it and the codemode section shows its type; a model that calls a tool directly reads text. Times are ISO strings. Each tool checks what it is asked and refuses with an explanation: in the object, `error` says why, and the script goes on. `hivemind_write_log` is the exception: when it cannot write the entry, the call fails and the script stops with the reason, because an entry that was not written must not pass unnoticed. Asking for a workstream that does not exist creates nothing.
 
 With `query`, a read of the log gives the entries that have every word, or else those that have the most, and `matchedWords` says how many. When a read stops before the start of the log, `older` is the number to pass as `before` to read on.
 

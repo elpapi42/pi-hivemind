@@ -17,6 +17,12 @@ export const failure = (error: string, empty: { readonly [key: string]: Structur
   isError: true,
 });
 
+/**
+ * A refusal with no object. A script that makes such a call stops with this text as its error, so the conversation
+ * always reads it. For a call whose refusal must not pass unnoticed, such as a log entry that was not written.
+ */
+export const rejection = (error: string): ToolExecutionResult => ({ output: [{ type: "text", text: error }], isError: true });
+
 /** A time as scripts get it. */
 export const iso = (ms: number): string => new Date(ms).toISOString();
 

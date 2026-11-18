@@ -19,9 +19,8 @@ export const WRITE_LOG_OUTPUT = parameters(
   {
     n: integer("Number of the new entry."),
     warning: string("Present when the entry was written but is longer than it may be."),
-    error: ERROR("nothing was written and `n` is absent"),
   },
-  ["n", "warning", "error"],
+  ["warning"],
 );
 
 export const READ_LOG_OUTPUT = parameters(

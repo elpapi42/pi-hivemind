@@ -30,7 +30,10 @@ test("an entry is refused when it is empty, too long, or about a workstream that
   const [a] = t.conversations;
   try {
     assert.match(await t.call(a!, "hivemind_write_log", { text: "  " }), /`text` is empty/);
-    assert.match(await t.call(a!, "hivemind_write_log", { text: "x".repeat(241) }), /`text` has 241 characters; the most is 200\. An entry holds one fact/);
+    assert.equal(
+      await t.call(a!, "hivemind_write_log", { text: "x".repeat(241) }),
+      "The entry is too long: `text` has 241 characters, and the most is 200. An entry holds one fact: shorten it, or split it into two entries, and write it again. Nothing was written to the log.",
+    );
     assert.match(await t.call(a!, "hivemind_write_log", { text: "Backend merged.", workstream: "ws-3" }), /There is no workstream ws-3\./);
     assert.match(await t.call(a!, "hivemind_write_log", { text: "Backend merged.", workstream: "invoices" }), /must be a workstream id such as "ws-12"/);
     assert.equal((await t.index())?.lastPage ?? -1, -1, "nothing was written");
