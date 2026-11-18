@@ -37,7 +37,6 @@ export function workstreamText(workstream: Workstream, entries: readonly Found[]
     "Description:",
     workstream.description,
   ];
-  if (workstream.summary !== undefined) lines.push("", workstream.status === "done" ? "Closing summary:" : "Closing summary from when it was last done:", workstream.summary);
 
   lines.push("", "Involved:");
   for (const involvement of Object.values(workstream.involved).sort((a, b) => a.since - b.since)) {

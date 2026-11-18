@@ -44,6 +44,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
       `show("found", await tools.hivemind_read_log({ query: "schema payroll", limit: 1 }));`,
       `show("list", await tools.hivemind_list_workstreams({}));`,
       `show("read", await tools.hivemind_read_workstream({ workstream: "ws-1" }));`,
+      `show("closed", await tools.hivemind_update_workstream({ workstream: "ws-2", status: "done", outcome: "Same work as ws-1; continuing there." }));`,
       `show("sent", await tools.hivemind_send_message({ to: ${b.id}, text: "Heads up: I am on the invoice export.", reply: false, workstream: "ws-1" }));`,
       `show("self", await tools.hivemind_send_message({ to: ${a.id}, text: "hello", reply: false }));`,
       `show("whoami", await tools.hivemind_whoami({}));`,
@@ -57,7 +58,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     assert.deepEqual(got("long"), { error: "The entry is too long: `text` has 241 characters, and the most is 200. An entry holds one fact: shorten it, or split it into two entries, and write it again. Nothing was written to the log." }, "a refused entry does not end the script: it comes back as an error to inspect");
     assert.deepEqual(got("longish"), { n: 5, warning: "The entry has 210 characters. The most is 200: write shorter entries." });
     assert.deepEqual(got("updated"), { changed: ["rewrote the description"] });
-    assert.deepEqual(got("noop"), { changed: [], error: "Pass at least one of `description`, `involvement`, `status` or `summary`." });
+    assert.deepEqual(got("noop"), { changed: [], error: "Pass at least one of `description`, `involvement` or `status`." });
 
     const log = got("log");
     assert.deepEqual([log.you, log.total, log.older], [a.id, 5, undefined]);
@@ -86,15 +87,13 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     assert.equal(read.workstream.entries[1].by, a.id);
     assert.equal(read.workstream.older, undefined);
 
+    assert.deepEqual(got("closed"), { changed: ["marked it done and wrote its outcome to the log"] });
     assert.deepEqual(got("sent"), { sent: true });
     assert.deepEqual(got("self"), { sent: false, error: `Conversation ${a.id} is you. A message goes to another conversation.` });
     assert.deepEqual(got("whoami"), {
       you: a.id,
-      // The most recently changed first: the description of ws-1 was rewritten after ws-2 was opened.
-      workstreams: [
-        { id: "ws-1", title: "Bulk invoice export", part: "Implements it." },
-        { id: "ws-2", title: "Invoice export in bulk", part: "Checks it." },
-      ],
+      // Only the open one: ws-2 was marked done.
+      workstreams: [{ id: "ws-1", title: "Bulk invoice export", part: "Implements it." }],
     });
 
     // A fork learns that it is a copy, and of whom.
@@ -103,7 +102,7 @@ test("with codemodeOnly the tools are reached from scripts, return objects, and 
     assert.equal(copy.you, fork.id);
     assert.equal(copy.copyOf, a.id);
     assert.deepEqual(copy.workstreams, []);
-    assert.equal(copy.copyOfWorkstreams.length, 2);
+    assert.equal(copy.copyOfWorkstreams.length, 1);
 
     const system = t.systems[0]!;
     const names = ["hivemind_write_log", "hivemind_read_log", "hivemind_list_workstreams", "hivemind_read_workstream", "hivemind_open_workstream", "hivemind_update_workstream", "hivemind_send_message", "hivemind_whoami"];

@@ -64,7 +64,6 @@ export const READ_WORKSTREAM_OUTPUT = parameters(
         status: STATUS,
         updatedAt: TIME,
         description: string(),
-        summary: string("The closing summary, when it is done or was done before."),
         involved: array(
           parameters({ conversation: integer(), part: string("Its own account of its part."), since: TIME }),
           "Every conversation involved, earliest first.",
@@ -72,7 +71,7 @@ export const READ_WORKSTREAM_OUTPUT = parameters(
         entries: array(parameters(ENTRY), "The newest log entries about it, oldest first."),
         older: OLDER,
       },
-      ["summary", "older"],
+      ["older"],
     ),
     error: ERROR("`workstream` is then absent"),
   },
@@ -91,9 +90,10 @@ export const OPEN_WORKSTREAM_OUTPUT = parameters(
 export const UPDATE_WORKSTREAM_OUTPUT = parameters(
   {
     changed: array(string(), 'What was done, such as "rewrote the description".'),
+    warning: string("Present when the outcome was written to the log but is longer than an entry may be."),
     error: ERROR("nothing changed"),
   },
-  ["error"],
+  ["warning", "error"],
 );
 
 export const SEND_MESSAGE_OUTPUT = parameters(

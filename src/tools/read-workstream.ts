@@ -49,7 +49,6 @@ export function readWorkstreamTool(config: HivemindConfig) {
           status: workstream.status,
           updatedAt: iso(workstream.updatedAt),
           description: workstream.description,
-          ...(workstream.summary === undefined ? {} : { summary: workstream.summary }),
           involved: Object.values(workstream.involved)
             .sort((a, b) => a.since - b.since)
             .map((involvement) => ({ conversation: involvement.conversation, part: involvement.text, since: iso(involvement.since) })),

@@ -12,7 +12,7 @@ test("a conversation asks who it is, and is told its id and what it is involved 
 
     await t.call(a, "hivemind_open_workstream", EXPORT);
     await t.call(a, "hivemind_open_workstream", { title: "Login page redesign", description: "New layout.", involvement: "Designs it." });
-    await t.call(a, "hivemind_update_workstream", { workstream: "ws-2", status: "done", summary: "Shipped." });
+    await t.call(a, "hivemind_update_workstream", { workstream: "ws-2", status: "done", outcome: "Shipped." });
     await t.call(a, "hivemind_open_workstream", { title: "Certificate rotation", description: "Rotate before expiry.", involvement: "Does it." });
     assert.equal(
       await t.call(a, "hivemind_whoami", {}),

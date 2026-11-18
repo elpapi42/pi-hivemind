@@ -79,42 +79,59 @@ test("the description is a snapshot that is replaced, and the index holds no cop
   }
 });
 
-test("a done workstream leaves the index, and is still read by its id and found through the log", async () => {
+test("a workstream is marked done with its outcome, which is the closing entry in the log", async () => {
   const t = await setup();
   const [a, b] = t.conversations as [(typeof t.conversations)[0], (typeof t.conversations)[0]];
   try {
     await t.call(a, "hivemind_open_workstream", EXPORT);
-    assert.match(await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "done" }), /Marking ws-1 done needs `summary`/);
-    assert.match(await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", summary: "Shipped." }), /`summary` is the closing summary of a done workstream/);
+    assert.match(await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "done" }), /Marking ws-1 done needs `outcome`: one fact that says how the work ended\./);
+    assert.match(await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", outcome: "Shipped." }), /`outcome` goes with `status` "done"/);
+    assert.match(
+      await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "done", outcome: "x".repeat(241) }),
+      /The outcome is too long: `outcome` has 241 characters, and the most is 200\..* Nothing changed\./,
+    );
+    assert.equal((await t.workstream(1))!.status, "open", "a refused closing changes nothing");
 
-    const closed = await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "done", summary: "Shipped the export with the tax id column. Finance confirmed it." });
-    assert.match(closed, /marked it done\./);
-    assert.equal((await t.workstream(1))!.status, "done");
+    const closed = await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "done", outcome: "Shipped the export with the tax id column.  Finance confirmed the file." });
+    assert.match(closed, /ws-1 · Bulk invoice export: marked it done and wrote its outcome to the log\.$/);
+    const workstream = (await t.workstream(1))!;
+    assert.equal(workstream.status, "done");
+    assert.equal("summary" in workstream, false, "the end is in the log, not in the document");
     assert.deepEqual((await t.index())!.open, {}, "the index holds only open workstreams");
     assert.equal((await t.index())!.nextWorkstream, 2);
 
     assert.match(await t.call(b, "hivemind_list_workstreams", {}), /There are no open workstreams\. A workstream that was marked done is not listed: find it in the log/);
-    assert.match(await t.call(b, "hivemind_read_log", { query: "invoice export" }), / · ws-1 · Closed ws-1: Bulk invoice export$/, "the log says that it ended, and under which id");
+    assert.match(await t.call(b, "hivemind_read_log", { query: "invoice export" }), /^1 entry that matches, oldest first\. The log has 2\.\n\n1 · .* · ws-1 · Opened ws-1: Bulk invoice export$/, "the words of its title find its id in the log");
+    assert.match(await t.call(b, "hivemind_read_log", { workstream: "ws-1" }), / · ws-1 · Closed ws-1: Shipped the export with the tax id column\. Finance confirmed the file\.$/, "and its entries say how it ended");
     const read = await t.call(b, "hivemind_read_workstream", { workstream: "ws-1" });
     assert.match(read, /^You are not involved in this workstream\.\n\nws-1 · Bulk invoice export · done/);
-    assert.match(read, /Closing summary:\nShipped the export with the tax id column\. Finance confirmed it\./);
+    assert.match(read, new RegExp(`\\n2 · .* · conversation ${a.id} · Closed ws-1: Shipped the export with the tax id column\\. Finance confirmed the file\\.$`), "a reader of the workstream sees how it ended as its last entry");
+    assert.match(await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "done", outcome: "Again." }), /ws-1 is already done\. To add something about it, write a log entry/);
 
     // An entry written after the end is still part of its history.
     await t.call(b, "hivemind_write_log", { text: "Finance found rows without a tax id in the export.", workstream: 1 });
     assert.match(await t.call(b, "hivemind_read_workstream", { workstream: 1 }), /Finance found rows without a tax id in the export\.$/);
 
-    // Reopening puts it back in the index and keeps the summary of the first end.
+    // Reopening puts it back in the index.
     assert.match(await t.call(a, "hivemind_update_workstream", { workstream: "ws-1", status: "open" }), /reopened it\./);
     const reopened = (await t.workstream(1))!;
     assert.equal(reopened.status, "open");
     assert.equal(reopened.closedAt, undefined);
-    assert.match(reopened.summary!, /^Shipped the export/);
     assert.equal((await t.index())!.open["1"]!.title, "Bulk invoice export");
     assert.match(await t.call(b, "hivemind_list_workstreams", {}), /ws-1 · Bulk invoice export\n/);
-    assert.match(await t.call(b, "hivemind_read_workstream", { workstream: 1 }), /Closing summary from when it was last done:\nShipped the export/);
+
+    // It is done a second time with a description for the detail, and an outcome a little over the ceiling is kept.
+    const again = await t.call(a, "hivemind_update_workstream", { workstream: 1, status: "done", description: "Shipped. Rows without a tax id are now exported with an empty cell.", outcome: "y".repeat(210) });
+    assert.match(again, /rewrote the description and marked it done and wrote its outcome to the log\. The outcome has 210 characters\. The most is 200: write shorter ones\.$/);
     assert.deepEqual(
       (await t.read({ workstream: 1 })).entries.map((entry) => entry.text),
-      ["Opened ws-1: Bulk invoice export", "Closed ws-1: Bulk invoice export", "Finance found rows without a tax id in the export.", "Reopened ws-1: Bulk invoice export"],
+      [
+        "Opened ws-1: Bulk invoice export",
+        "Closed ws-1: Shipped the export with the tax id column. Finance confirmed the file.",
+        "Finance found rows without a tax id in the export.",
+        "Reopened ws-1: Bulk invoice export",
+        `Closed ws-1: ${"y".repeat(210)}`,
+      ],
     );
   } finally {
     await t.close();

@@ -49,15 +49,16 @@ export type Involvement = {
 
 export type Status = "open" | "done";
 
-/** A piece of work with an outcome, and the conversations that have a part in it. Its history is the log entries that name it. */
+/**
+ * A piece of work with an outcome, and the conversations that have a part in it. Its history is the log entries that
+ * name it, and so is its end: marking it done writes the outcome to the log as its closing entry.
+ */
 export type Workstream = {
   id: number;
   title: string;
   /** The current state. Rewritten as the state changes; the log keeps what happened on the way. */
   description: string;
   status: Status;
-  /** Written when it is marked done: what happened and how it ended. Kept when it is reopened, until it is done again. */
-  summary?: string;
   openedAt: number;
   openedBy: number;
   /** When the description, an involvement or the status last changed. A log entry does not move it. */
@@ -150,9 +151,9 @@ export const WorkstreamDoc = defineDocFamily<Workstream, Seed>({
     involved: {},
     pages: [],
   }),
-  // Version 1 kept its own log. Those entries are not carried over.
+  // Version 1 kept its own log and a closing summary. Neither is carried over.
   migrate: (value) => {
-    const { log: _log, ...rest } = value as JsonObject;
+    const { log: _log, summary: _summary, ...rest } = value as JsonObject;
     return { ...rest, pages: [] } as unknown as Workstream;
   },
   checkpointWhen,

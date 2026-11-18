@@ -61,7 +61,7 @@ These are the moments to act:
 - **Your part changes.** Rewrite your involvement.
 - **You learn something that affects a workstream you have no part in.** Write an entry with its id, and message the conversation responsible for that work.
 - **Someone asks about work.** Read the workstream first. If it does not hold the answer, ask the conversations that did the work before you say that something is unknown. They remember what the log and the workstream do not, such as why a decision was made or what a person told them. A conversation that finished long ago can still be asked.
-- **The work ends.** Mark the workstream done with a summary of what happened and how it ended. A later reader must understand the outcome from the summary alone.
+- **The work ends.** Mark the workstream done with its outcome: one fact that says how the work ended. It is written to the log as the closing entry. Rewrite the description in the same call if it no longer says how things stand.
 
 The list shows only open workstreams. Work that ended is in the log: find it with `hivemind_read_log`, and read the workstream by the id its entries carry.
 

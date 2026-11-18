@@ -90,7 +90,8 @@ export function readLogTool(config: HivemindConfig) {
         return result(`No entries${filtered ? " match" : ""} in the part of the log that was read.${more}`, structured);
       }
       const partial = found.matchedWords === undefined ? "" : ` No entry has every word of the query; these have ${found.matchedWords} of them.`;
-      const head = `${found.entries.length} ${found.entries.length === 1 ? "entry" : "entries"}${filtered ? " that match" : ""}, oldest first. The log has ${found.total}.${partial}`;
+      const one = found.entries.length === 1;
+      const head = `${found.entries.length} ${one ? "entry" : "entries"}${filtered ? (one ? " that matches" : " that match") : ""}, oldest first. The log has ${found.total}.${partial}`;
       return result(`${head}\n\n${found.entries.map((entry) => entryText(entry, self)).join("\n")}${more}`, structured);
     },
   });

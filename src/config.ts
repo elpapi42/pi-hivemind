@@ -38,7 +38,6 @@ export const LIMITS = {
   title: 120,
   description: 4000,
   involvement: 600,
-  summary: 3000,
   message: 12_000,
 } as const;
 

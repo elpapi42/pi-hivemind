@@ -17,16 +17,16 @@ const OldIndex = defineDoc<{ next: number; rows: Record<string, { id: number; ti
   initial: () => ({ next: 1, rows: {} }),
   checkpointWhen: () => false,
 });
-const OldWorkstream = defineDocFamily<{ id: number; title: string; description: string; status: string; openedAt: number; openedBy: number; updatedAt: number; involved: Record<string, { conversation: number; text: string; since: number; updatedAt: number }>; log: { at: number; by: number; text: string }[] }, null>({
+const OldWorkstream = defineDocFamily<{ id: number; title: string; description: string; status: string; summary?: string; openedAt: number; openedBy: number; updatedAt: number; involved: Record<string, { conversation: number; text: string; since: number; updatedAt: number }>; log: { at: number; by: number; text: string }[] }, null>({
   kind: "hivemind.workstream",
   version: 1,
   scope: "session",
   family: true,
-  initial: () => ({ id: 1, title: "Bulk invoice export", description: "CSV export for finance.", status: "open", openedAt: 1, openedBy: 7, updatedAt: 2, involved: { "7": { conversation: 7, text: "Implements it.", since: 1, updatedAt: 1 } }, log: [{ at: 1, by: 7, text: "Opened." }] }),
+  initial: () => ({ id: 1, title: "Bulk invoice export", description: "CSV export for finance.", status: "open", summary: "An earlier end.", openedAt: 1, openedBy: 7, updatedAt: 2, involved: { "7": { conversation: 7, text: "Implements it.", since: 1, updatedAt: 1 } }, log: [{ at: 1, by: 7, text: "Opened." }] }),
   checkpointWhen: () => false,
 });
 
-test("documents of the first version are read as the new ones: the index keeps the open rows, a workstream drops its own log", async () => {
+test("documents of the first version are read as the new ones: the index keeps the open rows, a workstream drops its own log and its closing summary", async () => {
   const folder = mkdtempSync(join(tmpdir(), "pi-hivemind-"));
   const open = async () => {
     const models = createModels();
@@ -55,6 +55,7 @@ test("documents of the first version are read as the new ones: the index keeps t
     const workstream = (await harness.snapshot(WorkstreamDoc, "1", ctx))!;
     assert.deepEqual(workstream.pages, []);
     assert.equal("log" in workstream, false);
+    assert.equal("summary" in workstream, false);
     assert.equal(workstream.involved["7"]!.text, "Implements it.");
   } finally {
     await harness.close(ctx);

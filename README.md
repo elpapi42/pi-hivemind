@@ -42,7 +42,7 @@ A workstream is a piece of work with an outcome that needs more than log entries
 | Title | Short and stable |
 | Description | The current state: the goal, where it stands, what is next or blocking. It is rewritten when the state changes. |
 | Involved | Each conversation that has a part in the work, by id, with its own account of that part |
-| Status | Open or done. Marking a workstream done needs a closing summary. |
+| Status | Open or done. Marking a workstream done needs its outcome: one fact that says how the work ended. It is written to the log as the closing entry, so the end of a workstream is part of its history and not a field of its own. |
 | Entries | The log entries that name it. Any conversation can write one, also one that has no part in the work. |
 
 This is how a conversation reads one:
@@ -65,7 +65,7 @@ Log entries, oldest first:
 4811 · 2026-11-17 16:03 · conversation 31 · Added the tax id column to the plan. Waiting for the full column list.
 ```
 
-A conversation changes a workstream (its description, its status) only after it has recorded its own part in it. The extension writes the entries that say a workstream was opened, closed or reopened.
+A conversation changes a workstream (its description, its status) only after it has recorded its own part in it. The extension writes the entries that say a workstream was opened, closed or reopened: "Opened ws-12: Bulk invoice export", and at the end "Closed ws-12: Shipped with the tax id column. Finance confirmed the file.", where the text after the id is the outcome the closing conversation gave.
 
 A done workstream is no longer listed. It is still read by its id, its conversations can still be asked about it, and the log says when and under which id it ended.
 
@@ -118,9 +118,9 @@ The extension never decides who gets a message. The sender reads in the log and 
 | `hivemind_write_log` | Adds one entry to the log: `text`, and `workstream` when it is about one | `{ n?, warning?, error? }` |
 | `hivemind_read_log` | Reads the log: the newest 100 entries, or those that pass `conversation`, `workstream`, `from`, `to` and `query`; `before` reads further back | `{ you, total, entries: [{ n, at, by, workstream?, text }], older?, matchedWords? }` |
 | `hivemind_list_workstreams` | Lists the open workstreams. `query` looks in the titles; `conversation` filters. | `{ you, total, workstreams: [{ id, title, updatedAt, involved, description }] }` |
-| `hivemind_read_workstream` | Shows one workstream in full, open or done, with the newest 20 of its entries; `before` reads further back | `{ you, workstream?: { id, title, status, updatedAt, description, summary?, involved: [{ conversation, part, since }], entries: [{ n, at, by, text }], older? } }` |
+| `hivemind_read_workstream` | Shows one workstream in full, open or done, with the newest 20 of its entries; `before` reads further back | `{ you, workstream?: { id, title, status, updatedAt, description, involved: [{ conversation, part, since }], entries: [{ n, at, by, text }], older? } }` |
 | `hivemind_open_workstream` | Opens a workstream and records the caller as involved. It names open workstreams with similar titles, so a duplicate is noticed at once. | `{ id, similar: [{ id, title }] }` |
-| `hivemind_update_workstream` | Rewrites the description, sets the caller's involvement, marks the workstream done with a closing summary, or reopens it | `{ changed: string[] }` |
+| `hivemind_update_workstream` | Rewrites the description, sets the caller's involvement, marks the workstream done with its `outcome`, or reopens it | `{ changed: string[], warning? }` |
 | `hivemind_send_message` | Sends a message to another conversation | `{ sent }` |
 | `hivemind_whoami` | Tells the caller its own conversation id and the open workstreams it is involved in | `{ you, workstreams: [{ id, title, part }], copyOf?, copyOfWorkstreams? }` |
 
@@ -184,19 +184,19 @@ With Headless Pi, settings are read from `<workspace>/.hpi/pi-hivemind.json`. Ev
 | `pageSize` | 200 | Entries on one log page. It is used only when the log is created: entry numbers depend on it, so the index keeps the value from then on. |
 | `piecePages` | 200 | Log pages one directory piece covers. Also fixed when the log is created. |
 
-Texts have ceilings in characters: log entry 200 (up to 240 is still kept, with a warning), title 120, description 4000, involvement 600, closing summary 3000, message 12000. The ceiling of an entry keeps the log cheap to read. The others stop mistakes, such as a file pasted into a title.
+Texts have ceilings in characters: log entry 200 (up to 240 is still kept, with a warning), title 120, description 4000, involvement 600, message 12000. The outcome of a workstream is a log entry and has its ceiling. The ceiling of an entry keeps the log cheap to read. The others stop mistakes, such as a file pasted into a title.
 
 ## Limits of this version
 
 - **It rests on the prompt.** No hook checks that a conversation wrote to the log, and no workstream closes by itself. A log that conversations neglect is wrong, and others will act on it. A workstream that is never marked done stays in the index.
 - **Words have no index.** A search reads the newest 50 pages, 10,000 entries, for each call. Older entries are found with a period, or by reading on call after call.
-- **A done workstream is found through the log,** not through the list. Words that are only in its description or its closing summary are not searched.
+- **A done workstream is found through the log,** not through the list. Words that are only in its description are not searched.
 - **The newest 100 entries cover less time as the hive grows.** With a hundred conversations that each write once a minute, they are the last minute. The filters and the list of open workstreams then matter more than the plain read.
 - **Nothing stops two conversations from answering each other forever.** Each message says whether a reply is expected, and the prompt says not to answer only to acknowledge.
 - **A woken conversation pays for its whole context.** Its provider cache has usually expired.
 - **A message is stored as an ordinary user message.** A program that shows the transcript shows it like a person's input, with the `<hivemind-message>` tag.
 - **Conversations a task owns,** such as a subagent's, cannot be sent messages.
-- **The first version is not carried over.** Its index and workstream documents are read as the new ones, but the log each workstream kept is dropped, and its done workstreams are no longer listed.
+- **The first version is not carried over.** Its index and workstream documents are read as the new ones, but the log and the closing summary each workstream kept are dropped, and its done workstreams are no longer listed.
 - Tested with Pi Durable 1.5.2.
 
 ## Development
